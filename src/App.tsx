@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Navbar, ActiveModuleTab } from './components/Navbar';
 import { BrandMemoryView } from './components/BrandMemory/BrandMemoryView';
 import { ContentAuditorView } from './components/ContentAuditor/ContentAuditorView';
@@ -15,13 +15,15 @@ import {
 import { BrandKnowledgeBase } from './types/brand';
 import { Campaign, CampaignAsset } from './types/campaign';
 import { AuditLedgerRecord } from './types/audit';
-import { ShieldCheck, Cpu, FileCheck } from 'lucide-react';
+import { BatchAsset } from './components/ContentAuditor/UploadPane';
+import { ShieldCheck, Cpu } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveModuleTab>('content-auditor');
   const [brandKB, setBrandKB] = useState<BrandKnowledgeBase>(loadBrandKnowledgeBase);
   const [campaign, setCampaign] = useState<Campaign>(loadCampaign);
   const [ledger, setLedger] = useState<AuditLedgerRecord[]>(loadAuditLedger);
+  const [incomingAuditorAsset, setIncomingAuditorAsset] = useState<BatchAsset | null>(null);
 
   // Sync to storage
   const handleUpdateKb = (updated: BrandKnowledgeBase) => {
@@ -41,50 +43,75 @@ export const App: React.FC = () => {
     setLedger(defaults.ledger);
   };
 
+  // Navigates from Campaign Consistency directly into Content Auditor with the selected asset
   const handleInspectAssetInAuditor = (asset: CampaignAsset) => {
+    let batchCategory: 'Instagram Posts' | 'Marketing Pamphlets' | 'Content Banners' = 'Content Banners';
+    if (asset.channel === 'Instagram') batchCategory = 'Instagram Posts';
+    else if (asset.channel === 'Print Brochure') batchCategory = 'Marketing Pamphlets';
+
+    const converted: BatchAsset = {
+      id: `campaign-${asset.id}`,
+      name: asset.title,
+      batchCategory,
+      type: asset.format === 'Image' ? 'image' : asset.format === 'PDF' ? 'pdf' : 'text',
+      channel: asset.channel,
+      description: `Campaign Asset from ${asset.teamName || 'Campaign Batch'} (${asset.channel})`,
+      draftText: asset.fullText || '',
+      previewUrl: asset.previewUrl,
+      detectedLogoTag: asset.extractedLogoVersion?.toLowerCase().includes('v2') ? 'v2-vintage' : 'v3-approved',
+      expectedStatus: asset.status === 'In Sync' ? 'Approved' : 'Violation'
+    };
+
+    setIncomingAuditorAsset(converted);
     setActiveTab('content-auditor');
   };
 
-  // Keep ledger refreshed when user switches tabs
-  useEffect(() => {
-    setLedger(loadAuditLedger());
-  }, [activeTab]);
+  const handleTabChange = (tab: ActiveModuleTab) => {
+    if (tab === 'governance-ledger') {
+      setLedger(loadAuditLedger());
+    }
+    setActiveTab(tab);
+  };
 
   return (
     <div className="app-container">
       <Navbar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         brandKB={brandKB}
         onResetDefaults={handleResetDefaults}
       />
 
       <main className="main-view-container">
-        {activeTab === 'brand-memory' && (
+        <div style={{ display: activeTab === 'brand-memory' ? 'block' : 'none' }}>
           <BrandMemoryView
             kb={brandKB}
             onUpdateKb={handleUpdateKb}
-            onNavigateToAuditor={() => setActiveTab('content-auditor')}
-            onNavigateToCampaign={() => setActiveTab('campaign-consistency')}
+            onNavigateToAuditor={() => handleTabChange('content-auditor')}
+            onNavigateToCampaign={() => handleTabChange('campaign-consistency')}
           />
-        )}
+        </div>
 
-        {activeTab === 'content-auditor' && (
-          <ContentAuditorView kb={brandKB} />
-        )}
+        <div style={{ display: activeTab === 'content-auditor' ? 'block' : 'none' }}>
+          <ContentAuditorView
+            kb={brandKB}
+            incomingAsset={incomingAuditorAsset}
+            onClearIncomingAsset={() => setIncomingAuditorAsset(null)}
+          />
+        </div>
 
-        {activeTab === 'campaign-consistency' && (
+        <div style={{ display: activeTab === 'campaign-consistency' ? 'block' : 'none' }}>
           <CampaignConsistencyView
             campaign={campaign}
             kb={brandKB}
             onUpdateCampaign={handleUpdateCampaign}
             onInspectAssetInAuditor={handleInspectAssetInAuditor}
           />
-        )}
+        </div>
 
-        {activeTab === 'governance-ledger' && (
+        <div style={{ display: activeTab === 'governance-ledger' ? 'block' : 'none' }}>
           <DecisionLedgerView ledger={ledger} />
-        )}
+        </div>
       </main>
 
       <footer

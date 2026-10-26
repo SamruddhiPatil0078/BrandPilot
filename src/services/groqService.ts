@@ -3,8 +3,8 @@
  * Connects directly to Groq API for real-time LLM inference without hardcoded responses.
  */
 
-const DEFAULT_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
-const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+const BACKEND_CHAT_ENDPOINT = '/api/groq/chat';
+const BACKEND_HEALTH_ENDPOINT = '/api/groq/health';
 export const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 export const FAST_MODEL = 'openai/gpt-oss-20b';
 
@@ -33,42 +33,53 @@ export interface ToneAndClaimAnalysisResult {
   overallAssessment: string;
 }
 
+/**
+ * Checks if the backend proxy is reachable and has GROQ_API_KEY configured.
+ */
+export async function checkBackendAiStatus(): Promise<{ available: boolean; configured: boolean }> {
+  try {
+    const res = await fetch(BACKEND_HEALTH_ENDPOINT);
+    if (!res.ok) return { available: false, configured: false };
+    const data = await res.json() as { groqConfigured?: boolean };
+    return { available: true, configured: Boolean(data.groqConfigured) };
+  } catch {
+    return { available: false, configured: false };
+  }
+}
+
+/**
+ * Calls the secure backend proxy endpoint for Groq Chat Completions.
+ * No API key is stored or transmitted by the browser.
+ */
 export async function callGroqChat(
   messages: GroqChatMessage[],
   model: string = DEFAULT_MODEL,
   temperature: number = 0.1
 ): Promise<string> {
-  const apiKey = localStorage.getItem('brandpilot_groq_key') || DEFAULT_API_KEY;
-
   try {
-    const response = await fetch(GROQ_ENDPOINT, {
+    const response = await fetch(BACKEND_CHAT_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model,
-        messages: messages,
-        temperature: temperature,
-        max_tokens: 2048,
+        messages,
+        model,
+        temperature,
       }),
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      if (model !== FAST_MODEL) {
-        console.warn(`Groq ${model} failed, falling back to ${FAST_MODEL}`, errData);
-        return callGroqChat(messages, FAST_MODEL, temperature);
-      }
-      throw new Error(`Groq API error (${response.status}): ${errData.error?.message || response.statusText}`);
+      const message = (errData as { error?: string })?.error || `Server error (${response.status})`;
+      throw new Error(message);
     }
 
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
+    const data = await response.json() as { content?: string };
+    return data.content || '';
   } catch (err: unknown) {
     const error = err as Error;
-    console.error('Groq Chat Error:', error);
+    console.error('Groq Proxy Chat Error:', error.message);
     throw error;
   }
 }

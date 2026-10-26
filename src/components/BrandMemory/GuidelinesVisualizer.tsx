@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Sparkles,
   Palette,
   Type,
   Mic2,
@@ -12,10 +11,9 @@ import {
   Edit2,
   Check,
   History,
-  Calendar,
-  Info
+  Calendar
 } from 'lucide-react';
-import { BrandKnowledgeBase, ColorToken, TypographyToken } from '../../types/brand';
+import { BrandKnowledgeBase, ColorToken } from '../../types/brand';
 
 interface GuidelinesVisualizerProps {
   kb: BrandKnowledgeBase;
@@ -568,7 +566,20 @@ export const GuidelinesVisualizer: React.FC<GuidelinesVisualizerProps> = ({ kb, 
               <div style={{ padding: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: '13.5px' }}>{c.name}</span>
-                  {c.isPrimary && <span className="badge badge-success">Primary</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {c.isPrimary ? (
+                      <span className="badge badge-success">Primary</span>
+                    ) : (
+                      <button
+                        className="btn btn-secondary btn-icon-only btn-sm"
+                        style={{ padding: '2px', border: 'none', color: '#94A3B8' }}
+                        onClick={() => handleRemoveColor(c.id)}
+                        title={`Remove color ${c.name}`}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>{c.usage}</div>
               </div>

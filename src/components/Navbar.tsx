@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   BookOpen,
@@ -9,6 +9,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { BrandKnowledgeBase } from '../types/brand';
+import { checkBackendAiStatus } from '../services/groqService';
 
 export type ActiveModuleTab = 'brand-memory' | 'content-auditor' | 'campaign-consistency' | 'governance-ledger';
 
@@ -26,6 +27,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   brandKB,
   onResetDefaults,
 }) => {
+  const [aiStatus, setAiStatus] = useState<{ available: boolean; configured: boolean }>({
+    available: false,
+    configured: false
+  });
+
+  useEffect(() => {
+    checkBackendAiStatus().then(setAiStatus);
+  }, []);
+
   return (
     <header className="navbar">
       <div className="nav-brand">
@@ -83,10 +93,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span style={{ opacity: 0.8, fontSize: '11px' }}>({brandKB.activeVersion})</span>
         </div>
 
-        <div className="groq-status-badge" title="Groq Cloud LLM Active (openai/gpt-oss-120b & 20b)">
-          <span className="groq-indicator-dot"></span>
-          <Cpu size={14} />
-          <span>Groq AI Active</span>
+        <div
+          className="groq-status-badge"
+          style={{
+            borderColor: aiStatus.configured ? '#BBF7D0' : '#E2E8F0',
+            backgroundColor: aiStatus.configured ? '#F0FDF4' : '#F8FAFC',
+            color: aiStatus.configured ? '#166534' : '#64748B'
+          }}
+          title={
+            aiStatus.configured
+              ? 'Groq Cloud LLM Proxy Active via Server'
+              : aiStatus.available
+              ? 'Server Running • GROQ_API_KEY missing in server .env'
+              : 'Backend server offline (run npm run server)'
+          }
+        >
+          <span
+            className="groq-indicator-dot"
+            style={{
+              backgroundColor: aiStatus.configured ? '#16A34A' : '#94A3B8'
+            }}
+          ></span>
+          <Cpu size={14} color={aiStatus.configured ? '#16A34A' : '#64748B'} />
+          <span>{aiStatus.configured ? 'Groq AI Active' : aiStatus.available ? 'Groq Key Missing' : 'AI Offline'}</span>
         </div>
 
         <button

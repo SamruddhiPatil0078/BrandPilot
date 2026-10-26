@@ -5,10 +5,7 @@ import {
   Award,
   Ban,
   History,
-  CheckCircle2,
   AlertCircle,
-  Sparkles,
-  Layers,
   ArrowRight
 } from 'lucide-react';
 import { BrandKnowledgeBase } from '../../types/brand';
@@ -135,14 +132,24 @@ export const BrandMemoryView: React.FC<BrandMemoryViewProps> = ({
               <AlertCircle size={15} />
               <span>{notificationMsg}</span>
             </div>
-            <button
-              className="btn btn-sm"
-              style={{ background: '#F59E0B', color: '#000', padding: '3px 8px' }}
-              onClick={onNavigateToCampaign}
-            >
-              <span>Recheck Campaign Assets</span>
-              <ArrowRight size={12} />
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-sm"
+                style={{ background: '#2563EB', color: '#FFF', padding: '3px 8px' }}
+                onClick={onNavigateToAuditor}
+              >
+                <span>Audit Creatives</span>
+                <ArrowRight size={12} />
+              </button>
+              <button
+                className="btn btn-sm"
+                style={{ background: '#F59E0B', color: '#000', padding: '3px 8px' }}
+                onClick={onNavigateToCampaign}
+              >
+                <span>Recheck Campaign Assets</span>
+                <ArrowRight size={12} />
+              </button>
+            </div>
           </div>
         )}
       </div>
