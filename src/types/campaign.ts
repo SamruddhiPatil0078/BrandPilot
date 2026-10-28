@@ -1,4 +1,4 @@
-export type AssetChannel = 'Instagram' | 'Website' | 'Print Brochure' | 'Email' | 'Billboard' | 'LinkedIn' | 'Facebook';
+export type AssetChannel = 'Instagram' | 'Website' | 'Print Brochure' | 'Email' | 'Billboard' | 'LinkedIn' | 'Facebook' | 'SMS' | 'Mobile App';
 
 export interface CampaignAsset {
   id: string;
@@ -16,6 +16,9 @@ export interface CampaignAsset {
   extractedLogoVersion?: string;
   extractedDisclaimer?: string;
   extractedTone?: string;
+  extractedBackground?: string;
+  backgroundStatus?: 'Approved' | 'Warning' | 'Clean';
+  backgroundFindings?: string[];
   fullText: string;
   status: 'In Sync' | 'Conflicts Detected' | 'Needs Recheck';
   conflictCount: number;
@@ -28,7 +31,8 @@ export type ConflictType =
   | 'Tagline Inconsistency'
   | 'Outdated Logo'
   | 'Missing Disclaimer'
-  | 'Tone Divergence';
+  | 'Tone Divergence'
+  | 'Background Scene Warning';
 
 export interface CampaignConflict {
   id: string;

@@ -92,7 +92,16 @@ Replace draft copy with approved on-brand messaging:
   }, [kb, report]);
 
   useEffect(() => {
-    generateReport();
+    let ignore = false;
+    const timer = setTimeout(() => {
+      if (!ignore) {
+        generateReport();
+      }
+    }, 0);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
   }, [generateReport]);
 
   const handleCopy = () => {

@@ -102,6 +102,24 @@ export interface BrandVersionHistoryItem {
   updatedBy: string;
   changesSummary: string;
   snapshotDescription: string;
+  snapshotData?: BrandKnowledgeBase;
+}
+
+export interface BackgroundRule {
+  id: string;
+  category: 'Meat / Non-Veg' | 'Animals' | 'Religion / Religious Symbols' | 'Raw Serum Elements' | 'Custom';
+  elementName: string;
+  keywords: string[];
+  severity: 'WARNING' | 'VIOLATION';
+  policyReason: string;
+  suggestedFix: string;
+  isActive: boolean;
+}
+
+export interface BackgroundImageGuidelines {
+  overview: string;
+  approvedBackdrops: string[];
+  restrictedElements: BackgroundRule[];
 }
 
 export interface BrandKnowledgeBase {
@@ -120,4 +138,6 @@ export interface BrandKnowledgeBase {
   disclaimers: MandatoryDisclaimer[];
   logos: BrandLogoAsset[];
   versionHistory: BrandVersionHistoryItem[];
+  backgroundGuidelines?: BackgroundImageGuidelines;
 }
+

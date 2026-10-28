@@ -5,7 +5,6 @@ import {
   Calendar,
   Plus,
   Trash2,
-  ExternalLink,
   Award
 } from 'lucide-react';
 import { BrandKnowledgeBase, ApprovedClaim } from '../../types/brand';

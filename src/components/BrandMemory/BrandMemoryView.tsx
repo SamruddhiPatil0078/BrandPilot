@@ -6,14 +6,17 @@ import {
   Ban,
   History,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Image as ImageIcon
 } from 'lucide-react';
 import { BrandKnowledgeBase } from '../../types/brand';
 import { GuidelinesVisualizer } from './GuidelinesVisualizer';
 import { ProductFactsManager } from './ProductFactsManager';
 import { ClaimsManager } from './ClaimsManager';
 import { TerminologyManager } from './TerminologyManager';
+import { BackgroundSceneManager } from './BackgroundSceneManager';
 import { VersionHistoryModal } from './VersionHistoryModal';
+import { rollbackBrandKnowledgeBase } from '../../services/storageService';
 
 interface BrandMemoryViewProps {
   kb: BrandKnowledgeBase;
@@ -28,7 +31,7 @@ export const BrandMemoryView: React.FC<BrandMemoryViewProps> = ({
   onNavigateToAuditor,
   onNavigateToCampaign
 }) => {
-  const [activeTab, setActiveTab] = useState<'guidelines' | 'products' | 'claims' | 'terminology'>('guidelines');
+  const [activeTab, setActiveTab] = useState<'guidelines' | 'products' | 'claims' | 'terminology' | 'background'>('guidelines');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
@@ -187,6 +190,14 @@ export const BrandMemoryView: React.FC<BrandMemoryViewProps> = ({
           <Ban size={15} />
           <span>Terminology & Disclaimers ({kb.terminology.length})</span>
         </button>
+
+        <button
+          className={`btn ${activeTab === 'background' ? 'btn-brand' : 'btn-secondary'}`}
+          onClick={() => setActiveTab('background')}
+        >
+          <ImageIcon size={15} />
+          <span>Background & Visual Scenes ({kb.backgroundGuidelines?.restrictedElements.length || 4})</span>
+        </button>
       </div>
 
       {/* Active Tab View */}
@@ -210,9 +221,23 @@ export const BrandMemoryView: React.FC<BrandMemoryViewProps> = ({
         <TerminologyManager kb={kb} onUpdateKb={onUpdateKb} />
       )}
 
+      {activeTab === 'background' && (
+        <BackgroundSceneManager kb={kb} onUpdateKb={onUpdateKb} />
+      )}
+
       {/* Version History Modal */}
       {showHistoryModal && (
-        <VersionHistoryModal kb={kb} onClose={() => setShowHistoryModal(false)} />
+        <VersionHistoryModal
+          kb={kb}
+          onClose={() => setShowHistoryModal(false)}
+          onRollback={(targetVer) => {
+            const rolled = rollbackBrandKnowledgeBase(targetVer, kb);
+            onUpdateKb(rolled);
+            setShowHistoryModal(false);
+            setNotificationMsg(`Brand Memory successfully rolled back to Version ${targetVer}`);
+            setTimeout(() => setNotificationMsg(null), 5000);
+          }}
+        />
       )}
     </div>
   );

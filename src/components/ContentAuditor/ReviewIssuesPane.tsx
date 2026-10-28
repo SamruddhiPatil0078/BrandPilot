@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
 import {
-  AlertTriangle,
   CheckCircle2,
-  ExternalLink,
-  Copy,
-  Check,
   ShieldAlert,
-  ArrowRight,
   MessageSquare,
   Sparkles,
-  XCircle
+  XCircle,
+  ExternalLink
 } from 'lucide-react';
 import { AuditFinding, FindingCategory, ReviewDecision } from '../../types/audit';
 
@@ -39,7 +35,6 @@ export const ReviewIssuesPane: React.FC<ReviewIssuesPaneProps> = ({
   onApplyAllFixes
 }) => {
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const filteredFindings = findings.filter(f => {
     if (filterCategory === 'ALL') return true;
@@ -49,12 +44,6 @@ export const ReviewIssuesPane: React.FC<ReviewIssuesPaneProps> = ({
   const ruleViolationsCount = findings.filter(f => f.category === 'Verified rule violation').length;
   const unverifiedClaimsCount = findings.filter(f => f.category === 'No supporting evidence found').length;
   const inconsistenciesCount = findings.filter(f => f.category === 'Potential inconsistency').length;
-
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   const getCategoryBadgeClass = (category: FindingCategory) => {
     switch (category) {

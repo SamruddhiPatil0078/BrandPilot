@@ -204,7 +204,10 @@ export async function performOcr(
 
     onProgress?.(30, 'Initializing OCR worker...');
 
-    worker = await createWorker('eng');
+    worker = await createWorker('eng', 1, {
+      langPath: '/tesseract',
+      gzip: false
+    });
 
     onProgress?.(50, 'Recognizing text...');
 

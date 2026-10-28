@@ -327,7 +327,75 @@ export const INITIAL_BRAND_KNOWLEDGE_BASE: BrandKnowledgeBase = {
       changesSummary: 'Official launch of Logo v3. Deprecated Logo v2. Added ASCI 2024 claim substantiation rules.',
       snapshotDescription: 'Major brand identity & governance upgrade.'
     }
-  ]
+  ],
+  backgroundGuidelines: {
+    overview: 'All campaign and creative visual backdrops must reinforce Aurelia’s 100% Vegan, cruelty-free, clinical, and secular brand governance standards. Backgrounds must be calm, elegant, and free from sensitive, conflicting, or non-vegan elements.',
+    approvedBackdrops: [
+      'Pearl Cream (#F7F5F0) matte surface with gentle diffused sunlight',
+      'Minimalist cosmetic laboratory glassware & sterile glass stands',
+      'Fresh botanical leaves (e.g., Centella Asiatica, Green Tea flora)',
+      'Clean bathroom marble counter / spa stone aesthetic',
+      'Subtle Aurelia Emerald (#00473E) and gold tint studio backdrops'
+    ],
+    restrictedElements: [
+      {
+        id: 'bg-meat',
+        category: 'Meat / Non-Veg',
+        elementName: 'Meat / Non-Vegetarian Food Items',
+        keywords: ['meat', 'chicken', 'pork', 'beef', 'steak', 'barbecue', 'bbq', 'seafood', 'bacon', 'poultry', 'non-veg', 'grill meat', 'fish', 'mutton', 'lamb', 'ham', 'sausage'],
+        severity: 'WARNING',
+        policyReason: 'Aurelia is certified 100% Vegan & Cruelty-Free (PETA PV-2024). Any meat or animal-based food products in background scenes violate ethical vegan identity and cause brand confusion.',
+        suggestedFix: 'Replace background with neutral marble, clean ceramic, or botanical leaf styling.',
+        isActive: true
+      },
+      {
+        id: 'bg-animals',
+        category: 'Animals',
+        elementName: 'Live Animals / Pets in Frame',
+        keywords: ['animal', 'animals', 'dog', 'puppy', 'cat', 'kitten', 'pet', 'pets', 'wildlife', 'bird', 'fur', 'canine', 'feline'],
+        severity: 'WARNING',
+        policyReason: 'Cruelty-free dermatological brand compliance. Domestic pets or animals in product application settings create consumer allergen concerns and detract from clinical dermatological credibility.',
+        suggestedFix: 'Remove animal from background composition. Use clinical, serene lifestyle environment.',
+        isActive: true
+      },
+      {
+        id: 'bg-religion',
+        category: 'Religion / Religious Symbols',
+        elementName: 'Religious Iconography, Symbols & Places of Worship',
+        keywords: ['religion', 'religious', 'temple', 'shrine', 'altar', 'idol', 'church', 'mosque', 'prayer', 'deity', 'sacred', 'cross symbol', 'om symbol', 'religious artifact', 'god', 'goddess', 'worship'],
+        severity: 'WARNING',
+        policyReason: 'Secular brand governance & statutory advertising ethics. In compliance with ASCI Chapter III sensitivity standards, commercial skincare advertising must not invoke religious faith, deities, or places of worship.',
+        suggestedFix: 'Maintain a secular, neutral aesthetic without religious or devotional artifacts in backdrop.',
+        isActive: true
+      },
+      {
+        id: 'bg-serum',
+        category: 'Raw Serum Elements',
+        elementName: 'Exposed Raw Chemical Elements / Unapproved Ingredient Graphics in Serum',
+        keywords: [
+          'element in serum',
+          'chemical element',
+          'serum element',
+          'raw chemical',
+          'chemical formula',
+          'raw acid',
+          'floating chemical',
+          'acid formula',
+          'chemical molecule',
+          'unapproved element',
+          'serum element showed',
+          'element showed',
+          'pipette direct skin',
+          'h2so4',
+          'pure acid graphic'
+        ],
+        severity: 'WARNING',
+        policyReason: 'Cosmetic safety standards prohibit depicting raw hazardous chemical elements, floating reactive molecular equations, or unbuffered acids in serum imagery, which causes consumer chemical anxiety.',
+        suggestedFix: 'Depict serum with approved golden botanical droplet texture or clean dermatological dropper without exposed reactive chemical elements.',
+        isActive: true
+      }
+    ]
+  }
 };
 
 export const INITIAL_AUDIT_LEDGER: AuditLedgerRecord[] = [
@@ -369,78 +437,209 @@ export const INITIAL_CAMPAIGN: Campaign = {
   brandVersionSynced: 'v3.2',
   assets: [
     {
-      id: 'asset-ig-1',
-      title: 'Instagram Creative v2 (Social Ad)',
+      id: 'asset-cp-1',
+      title: 'Instagram Story Ad - Autumn Launch',
       channel: 'Instagram',
       format: 'Image',
-      previewUrl: 'instagram-creative',
+      teamName: 'Team Creative Pulse',
+      previewUrl: 'instagram-aurelia-creative',
       uploadedAt: '2026-10-24T16:20:00Z',
       extractedPrice: 1099,
       extractedPriceStr: '₹1,099',
       extractedOffer: 'Monsoon Sale legacy offer',
       extractedDate: '30 Sept 2026',
       extractedTagline: "India's most loved moisturizer!",
-      extractedLogoVersion: 'Logo v2 (Deprecated)',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
       extractedDisclaimer: 'Missing mandatory disclaimer',
       extractedTone: 'Urgent / Hyperbolic',
-      fullText: "Aurelia Skincare - Sponsored. India's most loved moisturizer! Results guaranteed in 7 days. Just ₹1,099! Aurelia Hydrating Moisturizer 50g. Deep Hydration. Glowing Skin. Dermatologist Inspired. #AureliaSkincare #GlowingSkin",
+      extractedBackground: '✓ Pearl Cream (#F7F5F0) matte studio surface with subtle botanical shadow',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "India's most loved moisturizer! Results guaranteed in 7 days. Just ₹1,099! Aurelia Hydrating Moisturizer 50g.",
       status: 'Conflicts Detected',
-      conflictCount: 4
+      conflictCount: 3
     },
     {
-      id: 'asset-web-1',
-      title: 'Official Website Hero Landing Page',
-      channel: 'Website',
+      id: 'asset-cp-2',
+      title: 'Instagram Reel Promo Banner',
+      channel: 'Instagram',
+      format: 'Image',
+      teamName: 'Team Creative Pulse',
+      previewUrl: 'instagram-reel-creative',
+      uploadedAt: '2026-10-24T18:00:00Z',
+      extractedPrice: 1099,
+      extractedPriceStr: '₹1,099',
+      extractedOffer: 'Social flash deal',
+      extractedDate: '30 Sept 2026',
+      extractedTagline: 'Miracle radiance glow',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
+      extractedDisclaimer: 'Missing mandatory disclaimer',
+      extractedTone: 'Hype / FOMO',
+      extractedBackground: '✓ Minimalist cosmetic laboratory glassware stand with botanical leaf',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Special social price ₹1,099! Erase barrier dryness with miracle botanicals.",
+      status: 'Conflicts Detected',
+      conflictCount: 3
+    },
+    {
+      id: 'asset-cp-3',
+      title: 'Influencer Collaboration Copy Brief',
+      channel: 'Instagram',
       format: 'Copy',
-      previewUrl: 'website-hero',
-      uploadedAt: '2026-10-25T11:00:00Z',
+      teamName: 'Team Creative Pulse',
+      previewUrl: 'compliant-preview',
+      uploadedAt: '2026-10-25T09:30:00Z',
       extractedPrice: 1299,
       extractedPriceStr: '₹1,299',
-      extractedOffer: 'Complimentary mini cleanser with order',
-      extractedDate: '31 Oct 2026',
+      extractedOffer: 'Creator affiliate discount',
+      extractedDate: '30 Nov 2026',
       extractedTagline: 'Discover your daily skincare ritual.',
       extractedLogoVersion: 'Logo v3 (Approved)',
       extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks.',
       extractedTone: 'Calm / Clinical',
-      fullText: "Aurelia Skincare. Discover your daily skincare ritual. Clinically verified barrier hydration for 72 hours. Available now at ₹1,299. Complimentary mini cleanser with every order through 31 Oct. *Based on clinical trial of 30 women over 4 weeks.",
+      extractedBackground: '✓ Pearl Cream (#F7F5F0) minimalist laboratory backdrop with fresh botanical leaf',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Aurelia Deep Hydrating Moisturizer (₹1,299). 72h cellular hydration backed by clinical trial HT-402.",
       status: 'In Sync',
       conflictCount: 0
     },
     {
-      id: 'asset-print-1',
-      title: 'In-Store Dermatologist Clinic Brochure',
+      id: 'asset-mp-1',
+      title: 'Clinic Reception Tri-Fold Brochure',
       channel: 'Print Brochure',
       format: 'PDF',
+      teamName: 'Team Metro Print & Retail',
       previewUrl: 'clinic-brochure',
-      uploadedAt: '2026-10-25T15:30:00Z',
+      uploadedAt: '2026-10-25T11:15:00Z',
       extractedPrice: 1299,
       extractedPriceStr: '₹1,299',
-      extractedOffer: 'Clinic partner pricing',
-      extractedDate: 'Valid till 30 Nov 2026',
+      extractedOffer: 'Standard catalog',
+      extractedDate: '30 Nov 2026',
       extractedTagline: 'Pure care, real results.',
-      extractedLogoVersion: 'Logo v2 (Deprecated)',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
       extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks.',
-      extractedTone: 'Clinical / Educational',
-      fullText: "Aurelia Skincare Clinic Guide. Pure care, real results. Aurelia Deep Hydrating Moisturizer 50g. Price: ₹1,299 inclusive of all taxes. Valid till 30 Nov 2026. Contains 2% Hyaluronic Acid. *Based on clinical trial of 30 women over 4 weeks.",
+      extractedTone: 'Clinical',
+      extractedBackground: '✓ Clean sterile clinic glass tray & marble counter',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Aurelia Clinical Guide. Pure care, real results. Price: ₹1,299. Features Logo v2.1 vintage crest on cover.",
       status: 'Conflicts Detected',
       conflictCount: 1
     },
     {
-      id: 'asset-email-1',
+      id: 'asset-mp-2',
+      title: 'Metro Station Outdoor Billboard',
+      channel: 'Billboard',
+      format: 'Image',
+      teamName: 'Team Metro Print & Retail',
+      previewUrl: 'billboard-creative',
+      uploadedAt: '2026-10-25T14:40:00Z',
+      extractedPrice: 1299,
+      extractedPriceStr: '₹1,299',
+      extractedOffer: 'Standard MRP catalog',
+      extractedDate: '30 Nov 2026',
+      extractedTagline: 'Discover your daily skincare ritual.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks.',
+      extractedTone: 'Calm / Premium',
+      extractedBackground: '✓ Pearl cream textured studio wall with soft botanical shadow',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Aurelia Skincare. Discover your daily skincare ritual. 50g at ₹1,299.",
+      status: 'In Sync',
+      conflictCount: 0
+    },
+    {
+      id: 'asset-mp-3',
+      title: 'In-Clinic Shelf-Talker Display Stand',
+      channel: 'Print Brochure',
+      format: 'Image',
+      teamName: 'Team Metro Print & Retail',
+      previewUrl: 'shelftalker-creative',
+      uploadedAt: '2026-10-25T17:10:00Z',
+      extractedPrice: 1299,
+      extractedPriceStr: '₹1,299',
+      extractedOffer: 'Clinic retail partner pack',
+      extractedDate: '30 Nov 2026',
+      extractedTagline: 'Pure care, real results.',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
+      extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks.',
+      extractedTone: 'Clinical',
+      extractedBackground: '✓ Minimalist cosmetic laboratory glassware stand with botanical leaf',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Dermatologist Recommended. Pure care, real results. Standard price ₹1,299. Note: utilizes Logo v2 crest.",
+      status: 'Conflicts Detected',
+      conflictCount: 1
+    },
+    {
+      id: 'asset-gc-1',
       title: 'VIP Autumn Newsletter Blast',
       channel: 'Email',
       format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
       previewUrl: 'email-blast',
       uploadedAt: '2026-10-26T09:15:00Z',
       extractedPrice: 1299,
-      extractedPriceStr: '₹1,299 (20% off code AUTUMN20)',
-      extractedOffer: '20% off with coupon',
-      extractedDate: 'Ends 15 Nov 2026',
+      extractedPriceStr: '₹1,299',
+      extractedOffer: 'Autumn VIP 20% off with AUTUMN20',
+      extractedDate: '15 Nov 2026',
       extractedTagline: 'Discover your daily skincare ritual.',
       extractedLogoVersion: 'Logo v3 (Approved)',
       extractedDisclaimer: '*Prices inclusive of all taxes.',
       extractedTone: 'Warm / Educational',
-      fullText: "Subject: Your Autumn Skincare Ritual Begins Here. Dear Aurelia VIP, transition smoothly into cooler weather. Restore your barrier with Aurelia Deep Hydrating Moisturizer (₹1,299). Enjoy 20% off with code AUTUMN20 through Nov 15. *Prices inclusive of all taxes.",
+      extractedBackground: '✓ Pearl cream neutral email card layout',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Subject: Your Autumn Skincare Ritual Begins Here. Dear Aurelia VIP, restore barrier health with Aurelia Deep Hydrating Moisturizer (₹1,299). Enjoy 20% off with code AUTUMN20 through Nov 15. *Prices inclusive of all taxes.",
+      status: 'In Sync',
+      conflictCount: 0
+    },
+    {
+      id: 'asset-gc-2',
+      title: 'Abandoned Cart Recovery SMS',
+      channel: 'SMS',
+      format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
+      previewUrl: 'sms-preview',
+      uploadedAt: '2026-10-26T10:45:00Z',
+      extractedPrice: 1299,
+      extractedPriceStr: '₹1,299',
+      extractedOffer: 'Complimentary travel cleanser',
+      extractedDate: '30 Nov 2026',
+      extractedTagline: 'Pure care, real results.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedDisclaimer: '*T&C apply.',
+      extractedTone: 'Calm',
+      extractedBackground: '✓ Text format clean card',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Hi! Complete your Aurelia daily skincare ritual. Your Deep Hydrating Moisturizer (₹1,299) is saved. Pure care, real results.",
+      status: 'In Sync',
+      conflictCount: 0
+    },
+    {
+      id: 'asset-gc-3',
+      title: 'Mobile App Push Notification',
+      channel: 'Mobile App',
+      format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
+      previewUrl: 'push-preview',
+      uploadedAt: '2026-10-26T11:20:00Z',
+      extractedPrice: 1299,
+      extractedPriceStr: '₹1,299',
+      extractedOffer: 'In-app hydration perk',
+      extractedDate: '30 Nov 2026',
+      extractedTagline: 'Discover your daily skincare ritual.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedDisclaimer: '*Valid in-app only.',
+      extractedTone: 'Direct / Helpful',
+      extractedBackground: '✓ Mobile App system layout',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Hydration check: Discover your daily skincare ritual with Aurelia 50g (₹1,299). Clinically proven barrier restoration.",
       status: 'In Sync',
       conflictCount: 0
     }
@@ -526,7 +725,11 @@ export function loadBrandKnowledgeBase(): BrandKnowledgeBase {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_KB);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (!parsed.backgroundGuidelines) {
+        parsed.backgroundGuidelines = INITIAL_BRAND_KNOWLEDGE_BASE.backgroundGuidelines;
+      }
+      return parsed;
     }
   } catch (e) {
     console.error('Error loading Brand KB:', e);
@@ -568,7 +771,10 @@ export function loadCampaign(): Campaign {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CAMPAIGNS);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed.assets && parsed.assets.length > 0 && parsed.assets[0].teamName) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.error('Error loading Campaign:', e);
@@ -582,6 +788,58 @@ export function saveCampaign(campaign: Campaign): void {
   } catch (e) {
     console.error('Error saving Campaign:', e);
   }
+}
+
+export function rollbackBrandKnowledgeBase(targetVersion: string, currentKb: BrandKnowledgeBase): BrandKnowledgeBase {
+  const historyItem = currentKb.versionHistory?.find(v => v.version === targetVersion);
+  if (historyItem?.snapshotData) {
+    const restored = { ...historyItem.snapshotData };
+    restored.versionHistory = [
+      {
+        version: `${targetVersion}-restored`,
+        timestamp: new Date().toISOString(),
+        updatedBy: 'Arjun (Brand Manager)',
+        changesSummary: `Rolled back knowledge base to ${targetVersion} snapshot.`,
+        snapshotDescription: `Restored snapshot of ${targetVersion}`
+      },
+      ...currentKb.versionHistory
+    ];
+    restored.activeVersion = targetVersion;
+    saveBrandKnowledgeBase(restored);
+    return restored;
+  }
+
+  // Fallback reconstructed state for standard version checkpoints
+  const restored: BrandKnowledgeBase = JSON.parse(JSON.stringify(currentKb));
+  restored.activeVersion = targetVersion;
+  restored.lastUpdated = new Date().toISOString();
+
+  if (targetVersion === 'v3.1') {
+    restored.products = restored.products.map(p =>
+      p.id === 'p1' ? { ...p, currentPrice: 1099 } : p
+    );
+  } else if (targetVersion === 'v3.0') {
+    restored.products = restored.products.map(p =>
+      p.id === 'p1' ? { ...p, currentPrice: 1099 } : p
+    );
+    restored.logos = restored.logos.map(l =>
+      l.version === 'v2.1' ? { ...l, status: 'Approved Current' } : l
+    );
+  }
+
+  restored.versionHistory = [
+    {
+      version: `${targetVersion}-restored`,
+      timestamp: new Date().toISOString(),
+      updatedBy: 'Arjun (Brand Manager)',
+      changesSummary: `Rolled back knowledge base to ${targetVersion}.`,
+      snapshotDescription: `Restored state for ${targetVersion}`
+    },
+    ...(currentKb.versionHistory || [])
+  ];
+
+  saveBrandKnowledgeBase(restored);
+  return restored;
 }
 
 export function resetAllStorageToDefaults(): { kb: BrandKnowledgeBase; campaign: Campaign; ledger: AuditLedgerRecord[] } {

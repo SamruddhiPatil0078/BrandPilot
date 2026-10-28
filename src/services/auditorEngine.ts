@@ -1,6 +1,7 @@
 
 import { BrandKnowledgeBase } from '../types/brand';
 import { AuditFinding, AuditReport } from '../types/audit';
+import { matchesRestrictedKeyword } from './campaignEngine';
 
 export interface AuditOcrWord {
   text: string;
@@ -21,6 +22,8 @@ export interface AuditRunOptions {
   extractedVia: 'Tesseract OCR' | 'PDF Parser' | 'Direct Input';
   ocrConfidence?: number;
   detectedLogoTag?: string;
+  backgroundDescription?: string;
+  detectedBackgroundTag?: string;
 
   // Coordinates must refer to the exact image processed by OCR.
   ocrWords?: AuditOcrWord[];
@@ -451,6 +454,69 @@ export async function runContentAudit(
     }
   }
 
+  // 1b. Dynamic Terminology checks from Brand Knowledge Base
+  if (kb.terminology && Array.isArray(kb.terminology)) {
+    for (const termRule of kb.terminology) {
+      if (termRule.type !== 'Banned') continue;
+      if (includesPhrase(text, termRule.term)) {
+        const alreadyFlagged = findings.some(f =>
+          f.flaggedText.toLowerCase().includes(termRule.term.toLowerCase())
+        );
+        if (!alreadyFlagged) {
+          addFinding(
+            {
+              title: `Banned Terminology: "${termRule.term}"`,
+              category: 'Verified rule violation',
+              severity: 'HIGH',
+              flaggedText: termRule.term,
+              explanation: termRule.reason || 'Term is prohibited under Aurelia Brand Governance policy.',
+              approvedSource: {
+                title: 'Brand Terminology Standard',
+                version: kb.activeVersion,
+                referenceId: termRule.id,
+              },
+              suggestedFix: termRule.suggestedAlternative || primaryTagline,
+              suggestedFixExplanation: 'Replace prohibited term with approved phrasing.',
+              ruleType: 'Claim',
+            },
+            termRule.term
+          );
+        }
+      }
+    }
+  }
+
+  // 1c. Past/Retired Taglines from Brand Knowledge Base
+  if (kb.tone.pastTaglines && Array.isArray(kb.tone.pastTaglines)) {
+    for (const past of kb.tone.pastTaglines) {
+      if (includesPhrase(text, past.tagline)) {
+        const alreadyFlagged = findings.some(f =>
+          f.flaggedText.toLowerCase().includes(past.tagline.toLowerCase())
+        );
+        if (!alreadyFlagged) {
+          addFinding(
+            {
+              title: `Retired Slogan Detected: "${past.tagline}"`,
+              category: 'Potential inconsistency',
+              severity: 'MEDIUM',
+              flaggedText: past.tagline,
+              explanation: `This slogan expired on ${past.validUntil}. Reason: ${past.reason}`,
+              approvedSource: {
+                title: 'Historical Slogan Archive',
+                version: kb.activeVersion,
+                referenceId: 'PAST-SLOGAN',
+              },
+              suggestedFix: primaryTagline,
+              suggestedFixExplanation: 'Replace retired slogan with active corporate tagline.',
+              ruleType: 'Claim',
+            },
+            past.tagline
+          );
+        }
+      }
+    }
+  }
+
   // 2. Medical / cure claims.
   // Separate findings are created for distinct problematic phrases.
   const medicalPhrases = [
@@ -824,6 +890,49 @@ export async function runContentAudit(
           }
         : undefined,
     });
+  }
+
+  // 10. Background Image & Visual Scene Checks (Meat, Animals, Religion, Raw Serum Elements)
+  // Only scan if an actual background description or detected image tags were provided.
+  // Never concatenate marketing body copy or title to avoid false positives on words like "application" or "competitor".
+  const bgText = `${options.backgroundDescription || ''} ${options.detectedBackgroundTag || ''}`.trim();
+  const bgRules = kb.backgroundGuidelines?.restrictedElements || [];
+
+  if (bgText) {
+    for (const rule of bgRules) {
+      if (!rule.isActive) continue;
+      for (const kw of rule.keywords) {
+        if (matchesRestrictedKeyword(bgText, kw)) {
+          const pinNumber = pinCounter++;
+          findings.push({
+            id: `finding-${pinNumber}-${Date.now()}`,
+            pinNumber,
+            decision: 'PENDING',
+            title: `Background Scene Warning: ${rule.elementName}`,
+            category: 'Potential inconsistency',
+            severity: 'MEDIUM', // Warning status
+            flaggedText: `Background: ${rule.elementName} (${kw})`,
+            explanation: `${rule.policyReason} Detected element: "${kw}" in background scene.`,
+            approvedSource: {
+              title: `Brand Memory Background Guidelines (${kb.activeVersion})`,
+              version: kb.activeVersion,
+              referenceId: rule.id
+            },
+            suggestedFix: rule.suggestedFix,
+            suggestedFixExplanation: 'Update background composition to align with approved Brand Memory visual standards.',
+            ruleType: 'Background',
+            coordinate: {
+              x: 75,
+              y: 82,
+              width: 22,
+              height: 12,
+              pinNumber
+            }
+          });
+          break; // One finding per rule category
+        }
+      }
+    }
   }
 
   const overallScore = calculateComplianceScore(findings);

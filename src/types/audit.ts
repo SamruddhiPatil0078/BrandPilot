@@ -32,7 +32,7 @@ export interface AuditFinding {
   };
   suggestedFix: string;
   suggestedFixExplanation: string;
-  ruleType: 'Price' | 'Claim' | 'Terminology' | 'Logo' | 'Tone' | 'Disclaimer' | 'Date';
+  ruleType: 'Price' | 'Claim' | 'Terminology' | 'Logo' | 'Tone' | 'Disclaimer' | 'Date' | 'Background' | 'Visual';
   coordinate?: MarkerCoordinate;
   decision: ReviewDecision;
   decisionNote?: string;

@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F7F5F0"/>
+      <stop offset="100%" stop-color="#EFECE6"/>
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00473E"/>
+      <stop offset="100%" stop-color="#0B6B5D"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C89B3C"/>
+      <stop offset="100%" stop-color="#E0BA6A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="1000" fill="url(#bg)"/>
+
+  <!-- Top Decorative Header Bar -->
+  <rect width="800" height="16" fill="url(#emeraldGrad)"/>
+
+  <!-- Clinic Tri-Fold Header -->
+  <g transform="translate(60, 60)">
+    <!-- Logo Emblem -->
+    <circle cx="40" cy="40" r="36" fill="url(#emeraldGrad)"/>
+    <text x="40" y="48" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" text-anchor="middle">A</text>
+
+    <text x="96" y="34" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#00473E" letter-spacing="1">AURELIA SKINCARE</text>
+    <text x="96" y="54" font-family="Arial, sans-serif" font-size="12" font-weight="600" fill="#C89B3C" letter-spacing="2">CLINICAL DERMATOLOGY GUIDE</text>
+  </g>
+
+  <!-- Brochure Badge -->
+  <rect x="620" y="60" width="120" height="30" rx="15" fill="#E2E8F0"/>
+  <text x="680" y="80" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#475569" text-anchor="middle">TRI-FOLD BROCHURE</text>
+
+  <!-- Hero Card Section -->
+  <g transform="translate(60, 140)">
+    <rect width="680" height="280" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="drop-shadow(0 4px 12px rgba(0,0,0,0.05))"/>
+
+    <text x="40" y="50" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#C89B3C" letter-spacing="1.5">DERMATOLOGIST RECOMMENDED</text>
+    <text x="40" y="90" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="#0F172A">Deep Hydrating</text>
+    <text x="40" y="128" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="#00473E">Moisturizer 50g</text>
+
+    <text x="40" y="170" font-family="Arial, sans-serif" font-size="14" fill="#64748B" width="380">
+      Pure care, real results. Formulated with 2% Multi-Weight
+    </text>
+    <text x="40" y="192" font-family="Arial, sans-serif" font-size="14" fill="#64748B">
+      Hyaluronic Acid & 5 Essential Ceramides for 72-hour barrier restoration.
+    </text>
+
+    <!-- Price Pill -->
+    <rect x="40" y="215" width="130" height="40" rx="8" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1.5"/>
+    <text x="105" y="240" font-family="Arial, sans-serif" font-size="18" font-weight="800" fill="#166534" text-anchor="middle">₹1,299</text>
+    <text x="180" y="238" font-family="Arial, sans-serif" font-size="12" fill="#64748B">MRP inclusive of all taxes</text>
+
+    <!-- Product Jar Illustration -->
+    <g transform="translate(480, 40)">
+      <rect x="20" y="70" width="140" height="130" rx="20" fill="url(#emeraldGrad)"/>
+      <rect x="10" y="45" width="160" height="30" rx="8" fill="url(#goldGrad)"/>
+      <circle cx="90" cy="130" r="32" fill="#FFFFFF" opacity="0.15"/>
+      <text x="90" y="136" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">AURELIA</text>
+      <text x="90" y="152" font-family="Arial, sans-serif" font-size="9" fill="#E2E8F0" text-anchor="middle">50g / 1.76 oz</text>
+    </g>
+  </g>
+
+  <!-- 3 Column Clinical Highlights -->
+  <g transform="translate(60, 450)">
+    <!-- Column 1 -->
+    <rect x="0" y="0" width="210" height="200" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <circle cx="40" cy="40" r="20" fill="#E0F2FE"/>
+    <text x="40" y="47" font-family="Arial, sans-serif" font-size="16" fill="#0284C7" text-anchor="middle">💧</text>
+    <text x="24" y="86" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">72-Hour Hydration</text>
+    <text x="24" y="112" font-family="Arial, sans-serif" font-size="12" fill="#64748B">Clinically proven sustained</text>
+    <text x="24" y="130" font-family="Arial, sans-serif" font-size="12" fill="#64748B">moisture retention score</text>
+    <text x="24" y="148" font-family="Arial, sans-serif" font-size="12" fill="#64748B">backed by trial HT-402.</text>
+
+    <!-- Column 2 -->
+    <rect x="235" y="0" width="210" height="200" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <circle cx="275" cy="40" r="20" fill="#DCFCE7"/>
+    <text x="275" y="47" font-family="Arial, sans-serif" font-size="16" fill="#16A34A" text-anchor="middle">🛡️</text>
+    <text x="259" y="86" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Barrier Recovery</text>
+    <text x="259" y="112" font-family="Arial, sans-serif" font-size="12" fill="#64748B">5 bio-identical ceramides</text>
+    <text x="259" y="130" font-family="Arial, sans-serif" font-size="12" fill="#64748B">reinforce the natural lipid</text>
+    <text x="259" y="148" font-family="Arial, sans-serif" font-size="12" fill="#64748B">shield within 4 weeks.</text>
+
+    <!-- Column 3 -->
+    <rect x="470" y="0" width="210" height="200" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <circle cx="510" cy="40" r="20" fill="#FEF3C7"/>
+    <text x="510" y="47" font-family="Arial, sans-serif" font-size="16" fill="#D97706" text-anchor="middle">🌱</text>
+    <text x="494" y="86" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">100% Vegan</text>
+    <text x="494" y="112" font-family="Arial, sans-serif" font-size="12" fill="#64748B">Certified cruelty-free by</text>
+    <text x="494" y="130" font-family="Arial, sans-serif" font-size="12" fill="#64748B">PETA (PV-2024). Free from</text>
+    <text x="494" y="148" font-family="Arial, sans-serif" font-size="12" fill="#64748B">artificial fragrances.</text>
+  </g>
+
+  <!-- Clinical Evidence Panel -->
+  <g transform="translate(60, 680)">
+    <rect width="680" height="150" rx="12" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1"/>
+    <text x="24" y="36" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#166534">Clinical Protocol HT-402 Findings</text>
+    <text x="24" y="64" font-family="Arial, sans-serif" font-size="12" fill="#15803D">
+      Conducted over 28 days with 30 participants. Corneometer assessments demonstrated +64% increase
+    </text>
+    <text x="24" y="84" font-family="Arial, sans-serif" font-size="12" fill="#15803D">
+      in skin hydration levels with zero reported contact dermatitis reactions (Safety Cert #DS-991).
+    </text>
+
+    <line x1="24" y1="105" x2="656" y2="105" stroke="#BBF7D0" stroke-width="1"/>
+    <text x="24" y="130" font-family="Arial, sans-serif" font-size="11" font-weight="600" fill="#166534">
+      Consult your dermatologist for personalized regimen recommendations.
+    </text>
+  </g>
+
+  <!-- Mandatory Footer Disclaimer -->
+  <g transform="translate(60, 870)">
+    <text x="340" y="30" font-family="Arial, sans-serif" font-size="10.5" fill="#64748B" text-anchor="middle">
+      *Based on clinical trial of 30 women over 4 weeks using Aurelia Deep Hydrating Moisturizer.
+    </text>
+    <text x="340" y="48" font-family="Arial, sans-serif" font-size="10.5" fill="#64748B" text-anchor="middle">
+      Individual results may vary. Compliant with ASCI Guidelines 2024 and CCPA Advertising Provisions.
+    </text>
+    <text x="340" y="70" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#00473E" text-anchor="middle">
+      www.aureliaskincare.com • Clinic Partner Hotline: 1800-AURELIA
+    </text>
+  </g>
+</svg>

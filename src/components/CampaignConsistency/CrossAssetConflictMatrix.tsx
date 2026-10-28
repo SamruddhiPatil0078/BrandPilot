@@ -1,12 +1,7 @@
 import React from 'react';
 import {
-  AlertTriangle,
   CheckCircle2,
-  Layers,
-  ArrowRight,
-  ExternalLink,
-  ShieldAlert,
-  Info
+  Layers
 } from 'lucide-react';
 import { CampaignConflict } from '../../types/campaign';
 

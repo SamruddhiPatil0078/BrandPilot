@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import {
   Ban,
   CheckCircle2,
-  AlertTriangle,
   Plus,
   Trash2,
-  HelpCircle,
   FileText
 } from 'lucide-react';
 import { BrandKnowledgeBase, TerminologyRule, MandatoryDisclaimer } from '../../types/brand';

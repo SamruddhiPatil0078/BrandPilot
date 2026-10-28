@@ -1,14 +1,9 @@
 import React from 'react';
 import {
-  FileText,
-  Image as ImageIcon,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
-  ExternalLink,
-  Calendar,
-  Tag,
-  Share2
+  ExternalLink
 } from 'lucide-react';
 import { CampaignAsset } from '../../types/campaign';
 
@@ -20,8 +15,7 @@ interface AssetCardsGridProps {
 
 export const AssetCardsGrid: React.FC<AssetCardsGridProps> = ({
   assets,
-  onInspectAsset,
-  onEditAsset
+  onInspectAsset
 }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -38,7 +32,6 @@ export const AssetCardsGrid: React.FC<AssetCardsGridProps> = ({
         {assets.map(asset => {
           const hasConflicts = asset.status === 'Conflicts Detected';
           const needsRecheck = asset.status === 'Needs Recheck';
-          const isInSync = asset.status === 'In Sync';
 
           return (
             <div

@@ -11,5 +11,22 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('pdfjs-dist')) {
+            return 'pdfjs-vendor';
+          }
+          if (id.includes('tesseract.js')) {
+            return 'tesseract-vendor';
+          }
+          if (id.includes('lucide-react')) {
+            return 'lucide-vendor';
+          }
+        }
+      }
+    }
   }
 })

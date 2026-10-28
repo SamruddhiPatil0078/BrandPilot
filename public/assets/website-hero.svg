@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="100%" height="100%">
+  <defs>
+    <linearGradient id="webBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBF9F5"/>
+      <stop offset="50%" stop-color="#F4EFE6"/>
+      <stop offset="100%" stop-color="#EAE3D5"/>
+    </linearGradient>
+    <linearGradient id="btnGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00473E"/>
+      <stop offset="100%" stop-color="#075C51"/>
+    </linearGradient>
+    <linearGradient id="goldG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C89B3C"/>
+      <stop offset="100%" stop-color="#E2B75A"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="675" fill="url(#webBg)"/>
+
+  <!-- Top Navigation Bar Mockup -->
+  <rect width="1200" height="72" fill="#FFFFFF" opacity="0.9"/>
+  <line x1="0" y1="72" x2="1200" y2="72" stroke="#E2E8F0" stroke-width="1"/>
+
+  <g transform="translate(80, 20)">
+    <!-- Logo -->
+    <circle cx="16" cy="16" r="16" fill="url(#btnGrad)"/>
+    <text x="16" y="21" font-family="Arial, sans-serif" font-size="14" font-weight="800" fill="#FFFFFF" text-anchor="middle">A</text>
+    <text x="42" y="22" font-family="Arial, sans-serif" font-size="16" font-weight="800" fill="#00473E" letter-spacing="1">AURELIA</text>
+
+    <!-- Nav Links -->
+    <text x="320" y="22" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#334155">Skincare</text>
+    <text x="420" y="22" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#334155">Serums</text>
+    <text x="510" y="22" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#334155">Clinical Studies</text>
+    <text x="640" y="22" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#334155">About Brand</text>
+
+    <!-- Right Header Action -->
+    <rect x="920" y="2" width="120" height="32" rx="16" fill="url(#btnGrad)"/>
+    <text x="980" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">Shop Ritual</text>
+  </g>
+
+  <!-- Hero Content Left Side -->
+  <g transform="translate(80, 150)">
+    <!-- Eyebrow Pill -->
+    <rect x="0" y="0" width="260" height="28" rx="14" fill="#F0FDF4" stroke="#BBF7D0"/>
+    <text x="130" y="18" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#166534" text-anchor="middle">
+      DERMATOLOGIST INSPIRED • LAB VERIFIED
+    </text>
+
+    <!-- Main Headline: Approved Primary Tagline -->
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="44" font-weight="800" fill="#0F172A" letter-spacing="-0.5">
+      Discover your daily
+    </text>
+    <text x="0" y="132" font-family="Arial, sans-serif" font-size="44" font-weight="800" fill="#00473E" letter-spacing="-0.5">
+      skincare ritual.
+    </text>
+
+    <!-- Subtitle -->
+    <text x="0" y="180" font-family="Arial, sans-serif" font-size="16" fill="#475569" width="480">
+      Deep Hydrating Moisturizer with 2% Hyaluronic Acid & 5 Essential Ceramides.
+    </text>
+    <text x="0" y="206" font-family="Arial, sans-serif" font-size="16" fill="#475569">
+      Clinically verified 72-hour moisture barrier restoration.
+    </text>
+
+    <!-- Price & Offer Badge -->
+    <g transform="translate(0, 240)">
+      <text x="0" y="28" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="#00473E">₹1,299</text>
+      <text x="120" y="20" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#16A34A">Complimentary mini cleanser</text>
+      <text x="120" y="36" font-family="Arial, sans-serif" font-size="12" fill="#64748B">with every order through 31 Oct</text>
+    </g>
+
+    <!-- Action Buttons -->
+    <g transform="translate(0, 310)">
+      <rect x="0" y="0" width="180" height="48" rx="10" fill="url(#btnGrad)"/>
+      <text x="90" y="29" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">
+        Add to Bag — ₹1,299
+      </text>
+
+      <rect x="195" y="0" width="160" height="48" rx="10" fill="#FFFFFF" stroke="#CBD5E1"/>
+      <text x="275" y="29" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#334155" text-anchor="middle">
+        View Clinical Trial
+      </text>
+    </g>
+
+    <!-- Mandatory Disclaimer Footnote -->
+    <text x="0" y="420" font-family="Arial, sans-serif" font-size="11" fill="#64748B">
+      *Based on clinical trial of 30 women over 4 weeks using Aurelia Deep Hydrating Moisturizer.
+    </text>
+  </g>
+
+  <!-- Hero Visual Card Right Side -->
+  <g transform="translate(720, 130)" filter="url(#shadow)">
+    <rect width="400" height="450" rx="24" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+
+    <!-- Soft Ceramic Surface -->
+    <ellipse cx="200" cy="360" rx="160" ry="40" fill="#F7F5F0" opacity="0.8"/>
+
+    <!-- Premium Jar Rendering -->
+    <g transform="translate(100, 120)">
+      <!-- Glass reflection base -->
+      <rect x="20" y="80" width="160" height="150" rx="28" fill="url(#btnGrad)"/>
+      <!-- Gold Lid -->
+      <rect x="10" y="50" width="180" height="36" rx="10" fill="url(#goldG)"/>
+
+      <!-- Inner Label -->
+      <rect x="40" y="110" width="120" height="80" rx="8" fill="#FFFFFF" opacity="0.12"/>
+      <text x="100" y="145" font-family="Arial, sans-serif" font-size="18" font-weight="800" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">AURELIA</text>
+      <text x="100" y="165" font-family="Arial, sans-serif" font-size="10" fill="#E2E8F0" text-anchor="middle">HYDRATING MOISTURIZER</text>
+      <text x="100" y="180" font-family="Arial, sans-serif" font-size="9" fill="#E2E8F0" text-anchor="middle">50g • 2% Hyaluronic</text>
+    </g>
+
+    <!-- Floating Clinical Badge -->
+    <g transform="translate(30, 40)">
+      <rect width="130" height="50" rx="12" fill="#FFFFFF" stroke="#BBF7D0" stroke-width="1.5" filter="drop-shadow(0 4px 8px rgba(0,0,0,0.06))"/>
+      <text x="16" y="24" font-family="Arial, sans-serif" font-size="15" font-weight="800" fill="#166534">72-Hour</text>
+      <text x="16" y="40" font-family="Arial, sans-serif" font-size="10.5" font-weight="600" fill="#64748B">Barrier Retention</text>
+    </g>
+
+    <!-- PETA Certified Vegan Seal -->
+    <g transform="translate(250, 360)">
+      <rect width="120" height="40" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+      <text x="60" y="24" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#00473E" text-anchor="middle">100% VEGAN</text>
+    </g>
+  </g>
+</svg>

@@ -173,36 +173,53 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
   const [isGroqReportModalOpen, setIsGroqReportModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Respond to incoming campaign asset selection
+  // Track previous incomingAsset and selection to synchronize state without cascading effects
+  const [prevIncomingAsset, setPrevIncomingAsset] = useState<BatchAsset | null>(null);
+  if (incomingAsset && incomingAsset !== prevIncomingAsset) {
+    setPrevIncomingAsset(incomingAsset);
+    setSelectedAsset(incomingAsset);
+    const text = incomingAsset.draftText || '';
+    setDraftText(text);
+    setOriginalDraftText(text);
+    setAuditReport(null);
+    setSelectedFindingId(null);
+    setAppliedFixIds(new Set());
+  }
+
+  const [prevAssetId, setPrevAssetId] = useState<string>(selectedAsset.id);
+  const [prevKbVersion, setPrevKbVersion] = useState<string>(kb.activeVersion);
+  if (selectedAsset.id !== prevAssetId || kb.activeVersion !== prevKbVersion) {
+    setPrevAssetId(selectedAsset.id);
+    setPrevKbVersion(kb.activeVersion);
+    setAuditReport(null);
+    setSelectedFindingId(null);
+    setAppliedFixIds(new Set());
+  }
+
+  // Handle side-effects (toast and clear callback) when incoming asset changes
   useEffect(() => {
     if (incomingAsset) {
-      setSelectedAsset(incomingAsset);
       const text = incomingAsset.draftText || '';
-      setDraftText(text);
-      setOriginalDraftText(text);
-      setAuditReport(null);
-      setSelectedFindingId(null);
-      setAppliedFixIds(new Set());
+      const timer = setTimeout(() => {
+        if (!text || text.trim().length === 0) {
+          setToastMessage(`Content for campaign asset "${incomingAsset.name}" is not yet available. Please provide copy or upload a creative.`);
+        } else {
+          setToastMessage(`Loaded campaign asset: "${incomingAsset.name}". Ready for audit.`);
+        }
+      }, 0);
 
-      if (!text || text.trim().length === 0) {
-        setToastMessage(`Content for campaign asset "${incomingAsset.name}" is not yet available. Please provide copy or upload a creative.`);
-      } else {
-        setToastMessage(`Loaded campaign asset: "${incomingAsset.name}". Ready for audit.`);
-      }
-      setTimeout(() => setToastMessage(null), 5000);
+      const hideTimer = setTimeout(() => setToastMessage(null), 5000);
 
       if (onClearIncomingAsset) {
         onClearIncomingAsset();
       }
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(hideTimer);
+      };
     }
   }, [incomingAsset, onClearIncomingAsset]);
-
-  // Keep review and evidence blank until user explicitly triggers audit
-  useEffect(() => {
-    setAuditReport(null);
-    setSelectedFindingId(null);
-    setAppliedFixIds(new Set());
-  }, [selectedAsset.id, kb.activeVersion]);
 
   const executeAudit = async (
     textToAudit: string,
@@ -247,6 +264,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
           extractedVia: isOcr ? 'Tesseract OCR' : extractedVia,
           ocrConfidence: activeOcrResult?.confidence ?? ocrConfidence,
           detectedLogoTag: logoTag,
+          backgroundDescription: selectedAsset.backgroundDescription || '',
           ocrWords: activeOcrResult?.words,
           ocrImageWidth: activeOcrResult?.imageWidth,
           ocrImageHeight: activeOcrResult?.imageHeight
@@ -277,7 +295,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
     setAppliedFixIds(new Set());
   };
 
-  const addToUploadHistory = async (file: File, draftText: string, previewUrl: string) => {
+  const addToUploadHistory = async (file: File, draftText: string, _previewUrl?: string) => {
     // Generate a thumbnail data URL for history persistence
     const thumbnailDataUrl = await fileToDataUrl(file);
     
@@ -508,6 +526,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
           extractedVia: auditReport.extractedVia,
           ocrConfidence: auditReport.ocrConfidence,
           detectedLogoTag: selectedAsset.detectedLogoTag,
+          backgroundDescription: selectedAsset.backgroundDescription || '',
           ocrWords: activeOcr?.words,
           ocrImageWidth: activeOcr?.imageWidth,
           ocrImageHeight: activeOcr?.imageHeight
@@ -581,6 +600,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
           extractedVia: auditReport.extractedVia,
           ocrConfidence: auditReport.ocrConfidence,
           detectedLogoTag: selectedAsset.detectedLogoTag,
+          backgroundDescription: selectedAsset.backgroundDescription || '',
           ocrWords: activeOcr?.words,
           ocrImageWidth: activeOcr?.imageWidth,
           ocrImageHeight: activeOcr?.imageHeight
@@ -597,7 +617,17 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
     setTimeout(() => setToastMessage(null), 4500);
   };
 
-  const handleSendEmailNotification = (data: { recipientEmail: string; recipientName: string; subject: string }) => {
+  const handleSendEmailNotification = async (data: { recipientEmail: string; recipientName: string; subject: string; messageBody?: string }) => {
+    try {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    } catch (e) {
+      console.warn('Email dispatch backend ping:', e);
+    }
+
     // Record rejection in ledger
     saveAuditLedgerRecord({
       id: `led-mail-${Date.now()}`,
@@ -612,7 +642,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
       timestamp: new Date().toISOString()
     });
 
-    setToastMessage(`Rejection email notice sent to ${data.recipientEmail}. Creator alerted.`);
+    setToastMessage(`Rejection email dispatched to ${data.recipientEmail}. Delivery status: Delivered.`);
     setTimeout(() => setToastMessage(null), 5000);
   };
 

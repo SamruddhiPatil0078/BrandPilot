@@ -1,6 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateComplianceScore, findPhraseBounds } from '../src/services/auditorEngine';
+import { scanBackgroundScene, auditCampaignConsistency } from '../src/services/campaignEngine';
+import { INITIAL_BRAND_KNOWLEDGE_BASE, INITIAL_CAMPAIGN } from '../src/services/storageService';
 import { AuditFinding } from '../src/types/audit';
 
 function createMockFinding(severity: 'HIGH' | 'MEDIUM' | 'LOW', id = 'f1'): AuditFinding {
@@ -313,6 +315,78 @@ describe('Task 4 — Content Auditor Marker Accuracy & Coordinate Mapping', () =
     // Product is near y=202/1200 ≈ 16.8%, wrinkles is near y=811/1200 ≈ 67.6%
     assert.ok(boundsProduct.y < 25);
     assert.ok(boundsWrinkles.y > 60);
+  });
+});
+
+describe('Task 5 — Background Visual Scene Scanning & Warning Status', () => {
+  const kb = INITIAL_BRAND_KNOWLEDGE_BASE;
+
+  test('detects meat/barbecue in background and triggers WARNING status', () => {
+    const result = scanBackgroundScene(
+      'Outdoor lifestyle shot of moisturizer next to barbecue grill and chicken meat platter on picnic table',
+      kb
+    );
+    assert.equal(result.hasWarning, true);
+    assert.ok(result.findings.some(f => f.category === 'Meat / Non-Veg'));
+    assert.ok(result.detectedSummary.includes('Meat / Non-Veg'));
+  });
+
+  test('detects live domestic animals/pets in background and triggers WARNING status', () => {
+    const result = scanBackgroundScene(
+      'Living room couch scene with golden retriever pet dog resting near product staging',
+      kb
+    );
+    assert.equal(result.hasWarning, true);
+    assert.ok(result.findings.some(f => f.category === 'Animals'));
+    assert.ok(result.detectedSummary.includes('Animals'));
+  });
+
+  test('detects religious symbols/iconography/shrine in background and triggers WARNING status', () => {
+    const result = scanBackgroundScene(
+      'Creative poster with traditional prayer altar and religious temple shrine visible on shelf',
+      kb
+    );
+    assert.equal(result.hasWarning, true);
+    assert.ok(result.findings.some(f => f.category === 'Religion / Religious Symbols'));
+    assert.ok(result.detectedSummary.includes('Religion'));
+  });
+
+  test('detects exposed raw chemical element formula in serum and triggers WARNING status', () => {
+    const result = scanBackgroundScene(
+      'Close-up of serum dropper with floating chemical element and raw acid formula graphic in droplet',
+      kb
+    );
+    assert.equal(result.hasWarning, true);
+    assert.ok(result.findings.some(f => f.category === 'Raw Serum Elements'));
+    assert.ok(result.detectedSummary.includes('Raw Serum Elements'));
+  });
+
+  test('returns clean approved status for pearl cream and sterile laboratory glass backdrop', () => {
+    const result = scanBackgroundScene(
+      'Moisturizer placed on minimalist pearl cream bathroom marble with sterile laboratory glassware and botanical leaf',
+      kb
+    );
+    assert.equal(result.hasWarning, false);
+    assert.equal(result.findings.length, 0);
+    assert.ok(result.detectedSummary.includes('Clean / Approved Backdrop'));
+  });
+
+  test('auditCampaignConsistency flags Background Scene Warning across campaign assets', () => {
+    const campaignWithBgWarning = {
+      ...INITIAL_CAMPAIGN,
+      assets: [
+        {
+          ...INITIAL_CAMPAIGN.assets[0],
+          extractedBackground: '⚠️ Domestic pet dog on sofa in background',
+          fullText: 'Aurelia Moisturizer with pet dog in background'
+        },
+        INITIAL_CAMPAIGN.assets[1]
+      ]
+    };
+    const { conflicts } = auditCampaignConsistency(campaignWithBgWarning, kb);
+    const bgConflict = conflicts.find(c => c.type === 'Background Scene Warning');
+    assert.ok(bgConflict, 'Should detect Background Scene Warning conflict');
+    assert.equal(bgConflict?.severity, 'MEDIUM');
   });
 });
 

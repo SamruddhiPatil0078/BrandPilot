@@ -60,11 +60,23 @@ cp .env.example .env
 ```
 Inside `.env`:
 ```env
-VITE_GROQ_API_KEY=your_groq_api_key_here
+# Server-side API key for Groq AI inference proxy
+GROQ_API_KEY=gsk_your_groq_api_key_here
+PORT=3001
 ```
 
-### 3. Run Development Server
+### 3. Run Development Servers
+To start both the Backend Proxy Server (Port 3001) and Vite Frontend (Port 5173) together:
 ```bash
+npm run dev:all
+```
+
+Alternatively, you can run them in separate terminal tabs:
+```bash
+# Terminal 1: Backend Express AI Proxy
+npm run server
+
+# Terminal 2: Vite Client
 npm run dev
 ```
 Open `http://localhost:5173` in your browser.

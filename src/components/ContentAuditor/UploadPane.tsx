@@ -4,17 +4,11 @@ import {
   FileText,
   Sparkles,
   CheckCircle2,
-  AlertTriangle,
-  FolderOpen,
-  Layers,
-  Share2,
-  FileCheck,
   Loader2,
   Mail,
   Cpu,
   Clock,
-  Trash2,
-  Image as ImageIcon
+  Trash2
 } from 'lucide-react';
 
 import { OcrResult } from '../../services/ocrService';
@@ -39,6 +33,8 @@ export interface BatchAsset {
   instagramHashtags?: string[];
   /** Account username shown in Instagram header. */
   instagramAccount?: string;
+  /** Background scene visual description for brand governance scanning */
+  backgroundDescription?: string;
 }
 
 // Persisted upload history entry
@@ -110,6 +106,7 @@ Glow naturally, your promise.
         instagramCaption: 'Your new daily ritual is here. ✨ Introducing the Deep Hydrating Moisturizer — deep hydration for naturally glowing skin. Shop now! 💚',
         instagramHashtags: ['#AureliaSkincare', '#GlowingSkin', '#SelfCare', '#SkincareCommunity'],
         detectedLogoTag: 'v2-vintage',
+        backgroundDescription: 'Pearl Cream (#F7F5F0) matte studio surface with subtle botanical shadow',
         expectedStatus: 'Violation'
       },
       {
@@ -131,6 +128,7 @@ SPECIAL OFFER: ₹749 ONLY!
         instagramCaption: 'Glow brighter every day with Vitamin C Glow Serum. ☀️ Limited time offer — grab yours now!',
         instagramHashtags: ['#VitaminC', '#GlowSerum', '#AureliaSkincare', '#SkincareRoutine'],
         detectedLogoTag: 'v2-vintage',
+        backgroundDescription: 'Minimalist laboratory glassware stand with golden botanical droplet',
         expectedStatus: 'Violation'
       },
       {
@@ -152,6 +150,7 @@ Available now at ₹1,299.
         instagramCaption: 'Science meets skincare. Our Deep Hydrating Moisturizer gives you 72 hours of clinically verified deep hydration. Available at ₹1,299.',
         instagramHashtags: ['#AureliaSkincare', '#SkinBarrier', '#Hyaluronic', '#DermatologistApproved'],
         detectedLogoTag: 'v3-approved',
+        backgroundDescription: 'Pearl Cream (#F7F5F0) minimalist laboratory surface with fresh botanical leaf',
         expectedStatus: 'Approved'
       }
     ]
@@ -177,6 +176,7 @@ Visit our certified aesthetic partners across India.`,
         previewUrl: 'clinic-brochure',
         previewFormat: 'pamphlet',
         detectedLogoTag: 'v2',
+        backgroundDescription: 'Clean sterile clinic reception counter with Pearl Cream accent',
         expectedStatus: 'Violation'
       },
       {
@@ -193,6 +193,7 @@ Recommended by top doctors nationwide. Standard price: ₹1,299.`,
         previewUrl: 'pharma-pdf-preview',
         previewFormat: 'pamphlet',
         detectedLogoTag: 'v2',
+        backgroundDescription: 'Neutral clinical white document background',
         expectedStatus: 'Warning'
       },
       {
@@ -210,6 +211,7 @@ Offer valid strictly through 30 September 2026.
         previewUrl: 'clinic-brochure',
         previewFormat: 'pamphlet',
         detectedLogoTag: 'v2',
+        backgroundDescription: 'Clean sterile clinic reception counter with Pearl Cream accent',
         expectedStatus: 'Violation'
       }
     ]

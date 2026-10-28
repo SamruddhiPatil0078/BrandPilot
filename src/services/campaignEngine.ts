@@ -1,6 +1,18 @@
 import { Campaign, CampaignAsset, CampaignConflict } from '../types/campaign';
 import { BrandKnowledgeBase } from '../types/brand';
 
+export function matchesRestrictedKeyword(text: string, keyword: string): boolean {
+  if (!text || !keyword) return false;
+  const trimmedKw = keyword.trim();
+  if (!trimmedKw) return false;
+  const escaped = trimmedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Word boundary regex: ensures keyword is matched as a distinct token, preventing
+  // false positives such as "pet" in "competitors", "cat" in "application" or "delicate",
+  // and "fur" in "further".
+  const regex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}([^a-zA-Z0-9]|$)`, 'i');
+  return regex.test(text);
+}
+
 /**
  * Campaign Consistency Engine
  * Treats all multi-channel assets in a campaign as a single cohesive set
@@ -128,6 +140,69 @@ export function auditCampaignConsistency(
     });
   }
 
+  // 5. Cross-Asset Expiry Date Check
+  const expiredDateAssets = assets.filter(a =>
+    a.extractedDate?.toLowerCase().includes('expired') ||
+    a.extractedDate?.toLowerCase().includes('30 sept')
+  );
+
+  if (expiredDateAssets.length > 0) {
+    conflicts.push({
+      id: `conf-date-${Date.now()}`,
+      type: 'Date Expiry Conflict',
+      title: 'Campaign Expiration Date Drift Across Channels',
+      severity: 'MEDIUM',
+      description: 'Multiple assets broadcast expired or diverging campaign validity periods. Standee lists expired September date whereas active campaign runs through 30 November 2026.',
+      involvedAssets: assets.map(a => ({
+        assetId: a.id,
+        assetTitle: a.title,
+        channel: a.channel,
+        teamName: a.teamName,
+        detectedValue: a.extractedDate || 'Standard Term'
+      })),
+      approvedTruth: {
+        rule: 'Approved Autumn Campaign Term',
+        validValue: '01 October 2026 through 30 November 2026',
+        sourceDocument: 'Q4 Master Campaign Brief 2026'
+      },
+      suggestedAlignment: 'Standardize campaign validity end-date to 30 November 2026 across all print and digital assets.'
+    });
+  }
+
+  // 6. Cross-Asset Background Visual Scene Check
+  const backgroundRules = kb.backgroundGuidelines?.restrictedElements || [];
+  const assetsWithBgWarnings = assets.filter(a => {
+    // Only inspect visual background scene description, never marketing body copy
+    const textToCheck = `${a.extractedBackground || ''}`.trim();
+    if (!textToCheck) return false;
+    return backgroundRules.some(rule =>
+      rule.isActive && rule.keywords.some(kw => matchesRestrictedKeyword(textToCheck, kw))
+    );
+  });
+
+  if (assetsWithBgWarnings.length > 0) {
+    conflicts.push({
+      id: `conf-bg-${Date.now()}`,
+      type: 'Background Scene Warning',
+      title: 'Restricted Background Visual Elements in Campaign Creatives',
+      severity: 'MEDIUM',
+      description: `${assetsWithBgWarnings.map(a => a.channel).join(' and ')} contain restricted background elements (meat, live animals, religious symbols, or raw chemical elements in serum) triggering Warning Status under Brand Memory guidelines.`,
+      involvedAssets: assets.map(a => ({
+        assetId: a.id,
+        assetTitle: a.title,
+        channel: a.channel,
+        teamName: a.teamName,
+        detectedValue: a.extractedBackground || (a.status === 'Conflicts Detected' ? 'Restricted backdrop detected' : 'Clean Pearl Cream Backdrop')
+      })),
+      approvedTruth: {
+        rule: 'Approved Background Visual Scene Standards',
+        validValue: 'Pearl Cream, clinical laboratory glassware, or fresh botanical leaves. Prohibited: meat, live animals, religious iconography, raw serum elements.',
+        sourceDocument: `Brand Visual Scene Guidelines ${kb.activeVersion}`
+      },
+      suggestedAlignment: 'Replace background with neutral pearl cream, clinical studio glass, or calm botanical foliage.'
+    });
+  }
+
   // Update asset statuses based on conflict involvement
   const updatedAssets = assets.map(asset => {
     const assetConflicts = conflicts.filter(c =>
@@ -135,7 +210,9 @@ export function auditCampaignConsistency(
         c.type === 'Outdated Logo' ? ia.detectedValue.includes('v2') || ia.detectedValue.includes('Deprecated') :
         c.type === 'Price Discrepancy' ? ia.detectedValue.includes('1,099') :
         c.type === 'Missing Disclaimer' ? ia.detectedValue.toLowerCase().includes('missing') || ia.detectedValue.toLowerCase().includes('no') :
-        c.type === 'Tagline Inconsistency' ? ia.detectedValue.includes('most loved') :
+        c.type === 'Tagline Inconsistency' ? ia.detectedValue.includes('most loved') || ia.detectedValue.includes('miracle') || ia.detectedValue.includes('care') :
+        c.type === 'Date Expiry Conflict' ? ia.detectedValue.toLowerCase().includes('expired') || ia.detectedValue.toLowerCase().includes('30 sept') :
+        c.type === 'Background Scene Warning' ? ia.detectedValue.toLowerCase().includes('warning') || ia.detectedValue.toLowerCase().includes('animal') || ia.detectedValue.toLowerCase().includes('meat') || ia.detectedValue.toLowerCase().includes('religion') || ia.detectedValue.toLowerCase().includes('serum') || ia.detectedValue.toLowerCase().includes('restricted') :
         false
       ))
     );
@@ -148,6 +225,186 @@ export function auditCampaignConsistency(
   });
 
   return { updatedAssets, conflicts };
+}
+
+/**
+ * Batch-updates all conflicting assets in a campaign:
+ * - Standardizes price to approved catalog price (₹1,299)
+ * - Upgrades deprecated Logo v2 to approved Logo v3.0
+ * - Unifies taglines to approved primary tagline
+ * - Appends mandatory clinical trial footnotes
+ * - Extends validity to approved term (30 Nov 2026)
+ * - Re-audits the campaign to verify zero conflicts remain
+ */
+export function autoAlignCampaignAssets(
+  campaign: Campaign,
+  kb: BrandKnowledgeBase
+): { updatedCampaign: Campaign; alignedCount: number } {
+  const currentPrice = kb.products[0]?.currentPrice ?? 1299;
+  const currentLogoVersion = kb.logos.find(l => l.status === 'Approved Current')?.version || 'Logo v3 (Approved)';
+  const approvedTagline = kb.tone.primaryTagline;
+  const approvedDisclaimer = kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
+
+  let alignedCount = 0;
+
+  const alignedAssets = campaign.assets.map(asset => {
+    let wasModified = false;
+    let newPrice = asset.extractedPrice;
+    let newPriceStr = asset.extractedPriceStr;
+    let newLogoVersion = asset.extractedLogoVersion;
+    let newTagline = asset.extractedTagline;
+    let newDisclaimer = asset.extractedDisclaimer;
+    let newDate = asset.extractedDate;
+    let newBackground = asset.extractedBackground;
+    let newBackgroundStatus = asset.backgroundStatus;
+    let newFullText = asset.fullText;
+
+    // 1. Align Price
+    if (asset.extractedPrice !== undefined && asset.extractedPrice !== currentPrice) {
+      newPrice = currentPrice;
+      newPriceStr = `₹${currentPrice.toLocaleString('en-IN')}`;
+      newFullText = newFullText.replace(/₹\s?1[,.]?099/g, `₹${currentPrice.toLocaleString('en-IN')}`);
+      wasModified = true;
+    }
+
+    // 2. Align Logo
+    if (asset.extractedLogoVersion && (
+      asset.extractedLogoVersion.toLowerCase().includes('v2') ||
+      asset.extractedLogoVersion.toLowerCase().includes('deprecated') ||
+      asset.extractedLogoVersion.toLowerCase().includes('vintage') ||
+      asset.extractedLogoVersion.toLowerCase().includes('no logo')
+    )) {
+      newLogoVersion = currentLogoVersion;
+      wasModified = true;
+    }
+
+    // 3. Align Tagline
+    if (asset.extractedTagline && (
+      asset.extractedTagline.toLowerCase().includes('most loved') ||
+      asset.extractedTagline.toLowerCase().includes('miracle') ||
+      asset.extractedTagline.toLowerCase().includes('care')
+    )) {
+      newTagline = approvedTagline;
+      newFullText = newFullText.replace(/India's most loved moisturizer!/gi, approvedTagline);
+      wasModified = true;
+    }
+
+    // 4. Align Disclaimer
+    if (!asset.extractedDisclaimer ||
+      asset.extractedDisclaimer.toLowerCase().includes('missing') ||
+      asset.extractedDisclaimer.toLowerCase().includes('no disclaimer')
+    ) {
+      newDisclaimer = approvedDisclaimer;
+      if (!newFullText.includes('*')) {
+        newFullText = `${newFullText} ${approvedDisclaimer}`;
+      }
+      wasModified = true;
+    }
+
+    // 5. Align Expiry Date
+    if (asset.extractedDate && (
+      asset.extractedDate.toLowerCase().includes('expired') ||
+      asset.extractedDate.toLowerCase().includes('30 sept') ||
+      asset.extractedDate.toLowerCase().includes('31 oct')
+    )) {
+      newDate = 'Valid till 30 Nov 2026';
+      wasModified = true;
+    }
+
+    // 6. Align Background if warning
+    if (asset.backgroundStatus === 'Warning' || asset.extractedBackground?.includes('⚠️')) {
+      newBackground = '✓ Pearl Cream (#F7F5F0) minimalist laboratory backdrop with fresh botanical leaf';
+      newBackgroundStatus = 'Clean';
+      wasModified = true;
+    }
+
+    if (wasModified) {
+      alignedCount++;
+    }
+
+    return {
+      ...asset,
+      extractedPrice: newPrice,
+      extractedPriceStr: newPriceStr,
+      extractedLogoVersion: newLogoVersion,
+      extractedTagline: newTagline,
+      extractedDisclaimer: newDisclaimer,
+      extractedDate: newDate,
+      extractedBackground: newBackground || '✓ Pearl Cream (#F7F5F0) clean approved laboratory backdrop',
+      backgroundStatus: (newBackgroundStatus === 'Warning' ? 'Clean' : newBackgroundStatus) || 'Clean',
+      backgroundFindings: [],
+      fullText: newFullText,
+      status: 'In Sync' as const,
+      conflictCount: 0
+    };
+  });
+
+  const provisionalCampaign: Campaign = {
+    ...campaign,
+    assets: alignedAssets,
+    lastRecheckedAt: new Date().toISOString(),
+    brandVersionSynced: kb.activeVersion
+  };
+
+  const reAudited = auditCampaignConsistency(provisionalCampaign, kb);
+
+  const updatedCampaign: Campaign = {
+    ...provisionalCampaign,
+    assets: reAudited.updatedAssets,
+    conflicts: reAudited.conflicts,
+    status: reAudited.conflicts.length === 0 ? 'Approved' : 'Under Review'
+  };
+
+  return { updatedCampaign, alignedCount };
+}
+
+export interface BackgroundScanResult {
+  hasWarning: boolean;
+  findings: {
+    category: string;
+    matchedElement: string;
+    warningMessage: string;
+    ruleId: string;
+    policyReason: string;
+    suggestedFix: string;
+  }[];
+  detectedSummary: string;
+}
+
+/**
+ * Scan background scene description or detected tags against Brand Memory rules
+ */
+export function scanBackgroundScene(
+  description: string,
+  kb: BrandKnowledgeBase
+): BackgroundScanResult {
+  const rules = kb.backgroundGuidelines?.restrictedElements || [];
+  const findings: BackgroundScanResult['findings'] = [];
+
+  for (const rule of rules) {
+    if (!rule.isActive) continue;
+    for (const kw of rule.keywords) {
+      if (matchesRestrictedKeyword(description, kw)) {
+        findings.push({
+          category: rule.category,
+          matchedElement: kw,
+          warningMessage: `⚠️ Warning: ${rule.elementName} detected in background scene`,
+          ruleId: rule.id,
+          policyReason: rule.policyReason,
+          suggestedFix: rule.suggestedFix
+        });
+        break; // One finding per rule category
+      }
+    }
+  }
+
+  return {
+    hasWarning: findings.length > 0,
+    findings,
+    detectedSummary: findings.length > 0
+      ? `⚠️ Warning: ${findings.map(f => f.category).join(', ')} detected in background`
+      : '✓ Clean / Approved Backdrop (Pearl Cream & Botanical)'
+  };
 }
 
 /**

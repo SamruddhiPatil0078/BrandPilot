@@ -164,12 +164,14 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
   // ── Resolve image URL ──────────────────────────────────────────────────────
   const resolvedImageUrl = useMemo(() => {
     if (!previewUrl) return null;
+    if (previewUrl === 'clinic-brochure') return '/assets/clinic-brochure.svg';
+    if (previewUrl === 'website-hero') return '/assets/website-hero.svg';
     const isReal =
       previewUrl.startsWith('blob:') ||
       previewUrl.startsWith('data:') ||
       previewUrl.startsWith('/') ||
       previewUrl.startsWith('http') ||
-      /\.(png|jpg|jpeg|webp|gif)$/i.test(previewUrl);
+      /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(previewUrl);
     return isReal ? previewUrl : null;
   }, [previewUrl]);
 
@@ -311,6 +313,50 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
 
       <div style={{ flex: 1, minHeight: '520px', backgroundColor: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '14px', overflowY: 'auto', overflowX: 'hidden', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: resolvedFormat === 'banner' ? '14px' : '20px 16px', position: 'relative' }}>
         <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center', transition: 'transform 0.2s ease', position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+
+          {/* Background Scene Vision Scanner Warning Banner */}
+          {findings.some(f => f.ruleType === 'Background') && (
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '430px',
+                marginBottom: '14px',
+                backgroundColor: '#FFFDF5',
+                border: '1.5px solid #F59E0B',
+                borderRadius: '12px',
+                padding: '10px 14px',
+                boxShadow: '0 4px 14px rgba(217, 119, 6, 0.12)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, color: '#B45309' }}>
+                  <ImageIcon size={15} color="#D97706" />
+                  <span>📷 Background Scene Vision Scanner</span>
+                </div>
+                <span className="badge" style={{ backgroundColor: '#FEF3C7', color: '#92400E', fontWeight: 700, fontSize: '10.5px' }}>
+                  ⚠️ WARNING STATUS
+                </span>
+              </div>
+              <div style={{ fontSize: '11.5px', color: '#78350F', lineHeight: '1.45' }}>
+                {findings.filter(f => f.ruleType === 'Background').map((bf) => (
+                  <div
+                    key={bf.id}
+                    style={{
+                      cursor: 'pointer',
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      backgroundColor: selectedFindingId === bf.id ? '#FDE68A' : 'transparent',
+                      marginTop: '4px'
+                    }}
+                    onClick={() => onSelectFinding(bf.id)}
+                  >
+                    <strong>Flagged:</strong> {bf.flaggedText} <br />
+                    <span style={{ color: '#047857', fontWeight: 600 }}>Fix: {bf.suggestedFix}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ──────────────── INSTAGRAM ──────────────── */}
           {resolvedFormat === 'instagram' && !showCorrectedVersion && (

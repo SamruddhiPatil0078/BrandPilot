@@ -1,13 +1,14 @@
 import React from 'react';
-import { History, GitCommit, CheckCircle2, User, Calendar } from 'lucide-react';
+import { History, GitCommit, User, Calendar, RotateCcw } from 'lucide-react';
 import { BrandKnowledgeBase } from '../../types/brand';
 
 interface VersionHistoryModalProps {
   kb: BrandKnowledgeBase;
   onClose: () => void;
+  onRollback?: (version: string) => void;
 }
 
-export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({ kb, onClose }) => {
+export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({ kb, onClose, onRollback }) => {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" style={{ maxWidth: '680px' }} onClick={e => e.stopPropagation()}>
@@ -26,7 +27,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({ kb, on
 
         <div className="modal-body">
           <div style={{ marginBottom: '16px', fontSize: '12.5px', color: '#64748B' }}>
-            Every guideline, price change, and terminology edit creates an immutable version snapshot. This enables the auditor to differentiate between outdated facts (e.g. valid until last month) and fabricated claims.
+            Every guideline, price change, and terminology edit creates a version snapshot. You can inspect previous versions and roll back the entire active Brand Memory if needed.
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -48,7 +49,20 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({ kb, on
                       <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
                         Version {v.version}
                       </span>
-                      {isCurrent && <span className="badge badge-inconsistency">Active Truth</span>}
+                      {isCurrent ? (
+                        <span className="badge badge-inconsistency">Active Truth</span>
+                      ) : (
+                        onRollback && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => onRollback(v.version)}
+                          >
+                            <RotateCcw size={11} />
+                            <span>Rollback to this version</span>
+                          </button>
+                        )
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: '#64748B' }}>

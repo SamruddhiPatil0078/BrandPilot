@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Upload, Layers } from 'lucide-react';
+import { Plus, Layers } from 'lucide-react';
 import { AssetChannel, CampaignAsset } from '../../types/campaign';
 
 interface AddAssetModalProps {
@@ -9,10 +9,11 @@ interface AddAssetModalProps {
 
 export const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAddAsset }) => {
   const [title, setTitle] = useState('');
+  const [teamName, setTeamName] = useState('Team Creative Pulse');
   const [channel, setChannel] = useState<AssetChannel>('Billboard');
   const [format, setFormat] = useState<'Image' | 'PDF' | 'Copy'>('Image');
   const [priceStr, setPriceStr] = useState('₹1,299');
-  const [offer, setOffer] = useState('Standard Price');
+  const [offer, setOffer] = useState('Standard Catalog Offer');
   const [dateStr, setDateStr] = useState('Valid till 30 Nov 2026');
   const [tagline, setTagline] = useState('Discover your daily skincare ritual.');
   const [logoVersion, setLogoVersion] = useState('Logo v3 (Approved)');
@@ -28,6 +29,7 @@ export const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAddAsse
     const newAsset: CampaignAsset = {
       id: `asset-${Date.now()}`,
       title: title.trim(),
+      teamName,
       channel,
       format,
       previewUrl: 'campaign-asset-custom',
@@ -39,6 +41,9 @@ export const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAddAsse
       extractedTagline: tagline,
       extractedLogoVersion: logoVersion,
       extractedDisclaimer: disclaimer,
+      extractedBackground: '✓ Pearl Cream (#F7F5F0) matte studio surface with subtle botanical shadow',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
       fullText: fullText || `${title} - ${tagline}. Price: ${priceStr}. ${disclaimer}`,
       status: 'In Sync',
       conflictCount: 0
@@ -67,15 +72,30 @@ export const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAddAsse
           </div>
 
           <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label">Asset Title</label>
-              <input
-                className="form-input"
-                placeholder="e.g. Metro Station Outdoor Billboard"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                required
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label className="form-label">Asset Title</label>
+                <input
+                  className="form-input"
+                  placeholder="e.g. Metro Station Outdoor Billboard"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Agency / Production Team</label>
+                <select
+                  className="form-select"
+                  value={teamName}
+                  onChange={e => setTeamName(e.target.value)}
+                >
+                  <option value="Team Creative Pulse">Team Creative Pulse (Social Agency)</option>
+                  <option value="Team Metro Print & Retail">Team Metro Print & Retail (Print Agency)</option>
+                  <option value="Team Growth & CRM Pod">Team Growth & CRM Pod (In-House Digital)</option>
+                </select>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -101,12 +121,34 @@ export const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAddAsse
                 <select
                   className="form-select"
                   value={format}
-                  onChange={e => setFormat(e.target.value as any)}
+                  onChange={e => setFormat(e.target.value as 'Image' | 'PDF' | 'Copy')}
                 >
                   <option value="Image">Image (Social / Banner)</option>
                   <option value="PDF">PDF (Brochure / Catalog)</option>
                   <option value="Copy">Copy (Landing page / Email)</option>
                 </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label className="form-label">Campaign Validity Date</label>
+                <input
+                  className="form-input"
+                  placeholder="e.g. Valid till 30 Nov 2026"
+                  value={dateStr}
+                  onChange={e => setDateStr(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Promotional Offer Note</label>
+                <input
+                  className="form-input"
+                  placeholder="e.g. Standard Catalog Offer"
+                  value={offer}
+                  onChange={e => setOffer(e.target.value)}
+                />
               </div>
             </div>
 
