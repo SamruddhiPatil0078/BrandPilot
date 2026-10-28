@@ -226,6 +226,70 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
     }
   }, [incomingAsset, onClearIncomingAsset]);
 
+  // Global clipboard paste listener to capture pasted images (Ctrl+V) and direct text drafts
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      // 1. Check for image files in clipboardData
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              e.preventDefault();
+              const namedFile = new File(
+                [file],
+                file.name || `Pasted-Creative-${new Date().toISOString().slice(11, 19).replace(/:/g, '-')}.png`,
+                { type: file.type || 'image/png' }
+              );
+              handleFileUpload(namedFile);
+              return;
+            }
+          }
+        }
+      }
+
+      // 2. If no image, but text was pasted and user is NOT typing inside a text input/textarea
+      const target = e.target as HTMLElement;
+      const isInput = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+
+      if (!isInput) {
+        const text = e.clipboardData?.getData('text');
+        if (text && text.trim().length > 0) {
+          e.preventDefault();
+          const customAsset: BatchAsset = {
+            id: `pasted-text-${Date.now()}`,
+            name: 'Pasted Draft Copy',
+            batchCategory: 'Content Banners',
+            type: 'text',
+            channel: 'Clipboard Text',
+            description: 'Draft marketing copy pasted directly from clipboard.',
+            draftText: text,
+            previewUrl: '',
+            previewFormat: 'text',
+            expectedStatus: 'Warning'
+          };
+          setSelectedAsset(customAsset);
+          setDraftText(text);
+          setOriginalDraftText(text);
+          setCurrentOcrResult(null);
+          setAuditReport(null);
+          setSelectedFindingId(null);
+          setAppliedFixIds(new Set());
+          setToastMessage('📋 Draft copy pasted from clipboard. Ready to audit!');
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, []);
+
   const executeAudit = async (
     textToAudit: string,
     title: string,
@@ -308,6 +372,16 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
     setAppliedFixIds(new Set());
   };
 
+  const handleTextChange = (newText: string) => {
+    setDraftText(newText);
+    if (selectedAsset.type === 'text') {
+      setSelectedAsset(prev => ({
+        ...prev,
+        draftText: newText
+      }));
+    }
+  };
+
   const addToUploadHistory = async (file: File, draftText: string, _previewUrl?: string) => {
     // Generate a thumbnail data URL for history persistence
     const thumbnailDataUrl = await fileToDataUrl(file);
@@ -341,20 +415,32 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
     setAppliedFixIds(new Set());
 
     const blobUrl = URL.createObjectURL(file);
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
 
     const customAsset: BatchAsset = {
       id: `custom-${Date.now()}`,
-      name: file.name,
+      name: file.name || (isImage ? 'Pasted Creative Image' : 'Custom Upload'),
       batchCategory: 'Content Banners',
-      type: file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'text',
-      channel: 'Custom Upload',
-      description: `Uploaded file: ${file.name}`,
+      type: isImage ? 'image' : isPdf ? 'pdf' : 'text',
+      channel: isImage ? 'Pasted Image (OCR)' : isPdf ? 'PDF Upload' : 'Direct Text Upload',
+      description: isImage
+        ? 'Creative image loaded. Extracting text via OCR...'
+        : `Uploaded file: ${file.name}`,
       draftText: '',
       previewUrl: blobUrl,
+      previewFormat: isImage ? 'image' : 'text',
       expectedStatus: 'Warning'
     };
 
-    if (file.type.startsWith('image/')) {
+    // IMMEDIATELY update selected asset so the image or document shows up in the preview screen right away!
+    setSelectedAsset(customAsset);
+    setDraftText('');
+    setOriginalDraftText('');
+    setCurrentOcrResult(null);
+
+    if (isImage) {
+      setToastMessage('📷 Image loaded into preview. Running Tesseract OCR analysis...');
       setAuditProgress({ percent: 20, status: 'Preprocessing image & running OCR...' });
       try {
         const ocrRes = await performOcr(file, (p, s) => {
@@ -373,34 +459,37 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
         }
         const finalText = cleanedText || extracted;
         customAsset.draftText = finalText;
-        setSelectedAsset(customAsset);
+        customAsset.description = `Recognized ${ocrRes.words?.length || 0} words (${(ocrRes.confidence || 0).toFixed(0)}% OCR accuracy)`;
+        setSelectedAsset({ ...customAsset });
         setDraftText(finalText);
         setOriginalDraftText(finalText);
 
         // Save to upload history
         await addToUploadHistory(file, finalText, blobUrl);
 
-        setToastMessage(`Image uploaded & text recognized. Click "Run Evidence Audit" to review.`);
+        setToastMessage(`✅ Image OCR complete (${ocrRes.words?.length || 0} words recognized). Ready to run audit.`);
         setTimeout(() => setToastMessage(null), 5000);
       } catch (err) {
         console.warn('OCR error:', err);
         customAsset.draftText = 'OCR could not read text. You can type or edit copy directly.';
-        setSelectedAsset(customAsset);
+        setSelectedAsset({ ...customAsset });
         setDraftText(customAsset.draftText);
         setOriginalDraftText(customAsset.draftText);
 
         // Still save to history even on OCR failure
         await addToUploadHistory(file, customAsset.draftText, blobUrl);
+        setToastMessage('⚠️ OCR could not detect legible text. You can edit copy manually in the left pane.');
+        setTimeout(() => setToastMessage(null), 5000);
       } finally {
         setIsAuditing(false);
         setAuditProgress(null);
       }
-    } else if (file.type === 'application/pdf') {
+    } else if (isPdf) {
       setAuditProgress({ percent: 40, status: 'Parsing PDF streams...' });
       try {
         const pdfRes = await extractTextFromPdf(file);
         customAsset.draftText = pdfRes.text;
-        setSelectedAsset(customAsset);
+        setSelectedAsset({ ...customAsset });
         setDraftText(pdfRes.text);
         setOriginalDraftText(pdfRes.text);
 
@@ -420,7 +509,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
       reader.onload = async (e) => {
         const content = (e.target?.result as string) || '';
         customAsset.draftText = content;
-        setSelectedAsset(customAsset);
+        setSelectedAsset({ ...customAsset });
         setDraftText(content);
         setOriginalDraftText(content);
         setIsAuditing(false);
@@ -784,7 +873,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
             selectedAsset={selectedAsset}
             onSelectAsset={handleSelectAsset}
             onFileUpload={handleFileUpload}
-            onTextChange={setDraftText}
+            onTextChange={handleTextChange}
             currentText={draftText}
             isAuditing={isAuditing}
             onRunAudit={() => executeAudit(draftText, selectedAsset.name, selectedAsset.type, selectedAsset.previewUrl, selectedAsset.detectedLogoTag, 'Direct Input')}
@@ -814,6 +903,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
             instagramCaption={selectedAsset.instagramCaption}
             instagramHashtags={selectedAsset.instagramHashtags}
             instagramAccount={selectedAsset.instagramAccount}
+            onFileUpload={handleFileUpload}
           />
         </div>
 

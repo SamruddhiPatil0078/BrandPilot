@@ -1,6 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 // Load server environment variables
 dotenv.config();
@@ -191,6 +194,23 @@ app.post('/api/send-email', (req: Request, res: Response): void => {
     timestamp: new Date().toISOString()
   });
 });
+
+// In production (e.g. Render single-service deployment), serve frontend build if dist exists
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.resolve(__dirname, '../dist');
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  // Express 5 compatible SPA fallback
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+      res.sendFile(path.join(distPath, 'index.html'));
+      return;
+    }
+    next();
+  });
+}
 
 // Centralized error handler to ensure secrets are never leaked in stack traces
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

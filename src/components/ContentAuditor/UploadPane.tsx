@@ -8,7 +8,10 @@ import {
   Mail,
   Cpu,
   Clock,
-  Trash2
+  Trash2,
+  ClipboardPaste,
+  Clipboard,
+  Image as ImageIcon
 } from 'lucide-react';
 
 import { OcrResult } from '../../services/ocrService';
@@ -26,7 +29,7 @@ export interface BatchAsset {
   expectedStatus: 'Violation' | 'Warning' | 'Approved';
   ocrResult?: OcrResult;
   /** Explicit preview layout. Overrides auto-detection. */
-  previewFormat?: 'instagram' | 'pamphlet' | 'banner' | 'image';
+  previewFormat?: 'instagram' | 'pamphlet' | 'banner' | 'image' | 'text';
   /** Caption shown below image in Instagram layout (separate from OCR text). */
   instagramCaption?: string;
   /** Hashtags shown after caption in Instagram layout. */
@@ -320,6 +323,101 @@ export const UploadPane: React.FC<UploadPaneProps> = ({
     }
   };
 
+  const handleToggleCustomInput = () => {
+    const nextMode = !customInputMode;
+    setCustomInputMode(nextMode);
+    setShowHistory(false);
+    if (nextMode) {
+      const customAsset: BatchAsset = {
+        id: `custom-text-${Date.now()}`,
+        name: 'Pasted Draft Copy',
+        batchCategory: 'Content Banners',
+        type: 'text',
+        channel: 'Direct Text Input',
+        description: 'Draft marketing copy provided directly for compliance verification.',
+        draftText: currentText || '',
+        previewUrl: '',
+        previewFormat: 'text',
+        expectedStatus: 'Warning'
+      };
+      onSelectAsset(customAsset);
+    } else {
+      onSelectAsset(currentBatch.assets[0]);
+    }
+  };
+
+  const handlePasteImageFromClipboard = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find(t => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const file = new File(
+              [blob],
+              `pasted-image-${Date.now()}.${imageType.split('/')[1] || 'png'}`,
+              { type: imageType }
+            );
+            onFileUpload(file);
+            return;
+          }
+        }
+      }
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim().length > 0) {
+          setCustomInputMode(true);
+          onTextChange(text);
+          const customAsset: BatchAsset = {
+            id: `custom-text-${Date.now()}`,
+            name: 'Pasted Draft Copy',
+            batchCategory: 'Content Banners',
+            type: 'text',
+            channel: 'Direct Text Input',
+            description: 'Draft marketing copy pasted from clipboard.',
+            draftText: text,
+            previewUrl: '',
+            previewFormat: 'text',
+            expectedStatus: 'Warning'
+          };
+          onSelectAsset(customAsset);
+          return;
+        }
+      }
+      alert('To paste an image or screenshot from your clipboard, press Ctrl+V anywhere on the page!');
+    } catch {
+      alert('Press Ctrl+V anywhere on this page to paste your clipboard image or text directly into BrandPilot.');
+    }
+  };
+
+  const handlePasteClipboardIntoTextarea = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        onTextChange(text);
+        if (selectedAsset.type === 'text') {
+          onSelectAsset({
+            ...selectedAsset,
+            draftText: text
+          });
+        }
+      }
+    } catch {
+      // User can press Ctrl+V directly in the textarea
+    }
+  };
+
+  const handleTextareaPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      const file = e.clipboardData.files[0];
+      if (file.type.startsWith('image/')) {
+        e.preventDefault();
+        onFileUpload(file);
+      }
+    }
+  };
+
   const handleSelectHistoryEntry = (entry: UploadHistoryEntry) => {
     const asset: BatchAsset = {
       id: `history-${entry.id}`,
@@ -591,8 +689,8 @@ export const UploadPane: React.FC<UploadPaneProps> = ({
         </div>
       )}
 
-      {/* Custom Upload or Custom Text Toggle */}
-      <div style={{ display: 'flex', gap: '8px', paddingTop: '4px', borderTop: '1px solid #E2E8F0' }}>
+      {/* Custom Upload, Paste Image, or Custom Text Controls */}
+      <div style={{ display: 'flex', gap: '6px', paddingTop: '6px', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap' }}>
         <input
           type="file"
           ref={fileInputRef}
@@ -602,33 +700,82 @@ export const UploadPane: React.FC<UploadPaneProps> = ({
         />
         <button
           className="btn btn-secondary btn-sm"
-          style={{ flex: 1, fontSize: '11.5px' }}
+          style={{ flex: 1, minWidth: '95px', fontSize: '11px', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
           onClick={() => fileInputRef.current?.click()}
+          title="Browse file from disk"
         >
           <Upload size={13} />
-          <span>Upload Custom File (OCR)</span>
+          <span>Browse File</span>
+        </button>
+
+        <button
+          className="btn btn-secondary btn-sm"
+          style={{ flex: 1.1, minWidth: '115px', fontSize: '11px', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: '#1D4ED8', borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' }}
+          onClick={handlePasteImageFromClipboard}
+          title="Paste image directly from clipboard (or press Ctrl+V)"
+        >
+          <ClipboardPaste size={13} color="#2563EB" />
+          <span>Paste Image (Ctrl+V)</span>
         </button>
 
         <button
           className={`btn btn-sm ${customInputMode ? 'btn-brand' : 'btn-secondary'}`}
-          style={{ flex: 1, fontSize: '11.5px' }}
-          onClick={() => { setCustomInputMode(!customInputMode); setShowHistory(false); }}
+          style={{ flex: 1, minWidth: '100px', fontSize: '11px', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          onClick={handleToggleCustomInput}
+          title="Type or paste draft marketing copy"
         >
           <FileText size={13} />
-          <span>Paste Custom Text</span>
+          <span>Paste Text</span>
         </button>
       </div>
 
       {customInputMode && (
-        <div>
-          <label className="form-label">Custom Draft Marketing Copy</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: '#F8FAFC', padding: '10px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ marginBottom: 0, fontWeight: 700, fontSize: '11.5px', color: '#1E293B' }}>
+              Draft Marketing Copy (Pasted Text)
+            </label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '10px', padding: '2px 8px', display: 'flex', alignItems: 'center', gap: '3px', backgroundColor: '#FFFFFF' }}
+                onClick={handlePasteClipboardIntoTextarea}
+                title="Paste text from clipboard"
+              >
+                <Clipboard size={11} color="#2563EB" />
+                <span>Paste Clipboard</span>
+              </button>
+              {currentText && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '10px', padding: '2px 8px', color: '#DC2626', backgroundColor: '#FFFFFF' }}
+                  onClick={() => {
+                    onTextChange('');
+                    if (selectedAsset.type === 'text') {
+                      onSelectAsset({ ...selectedAsset, draftText: '' });
+                    }
+                  }}
+                  title="Clear text"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
           <textarea
             className="form-textarea"
             rows={5}
             value={currentText}
             onChange={e => onTextChange(e.target.value)}
-            placeholder="Type or paste draft copy here to run exact checks and Groq AI tone analysis..."
+            onPaste={handleTextareaPaste}
+            placeholder="Type or paste draft copy here (or paste an image with Ctrl+V) to preview in the center pane and run audit..."
           />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#64748B' }}>
+            <span>{currentText ? `${currentText.trim().split(/\s+/).filter(Boolean).length} words` : '0 words'} · {currentText.length} chars</span>
+            <span style={{ color: '#2563EB', fontWeight: 600 }}>Live preview active in center screen</span>
+          </div>
         </div>
       )}
 

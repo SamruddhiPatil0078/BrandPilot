@@ -15,7 +15,11 @@ import {
   Bookmark,
   MoreHorizontal,
   Image as ImageIcon,
-  Tag
+  Tag,
+  Columns,
+  Layers,
+  ScanText,
+  Upload
 } from 'lucide-react';
 import { AuditFinding } from '../../types/audit';
 
@@ -32,13 +36,15 @@ interface AssetPreviewPaneProps {
   originalDraftText?: string;
   appliedFixIds?: Set<string>;
   /** Explicit preview layout. When provided overrides auto-detection. */
-  previewFormat?: 'instagram' | 'pamphlet' | 'banner' | 'image';
+  previewFormat?: 'instagram' | 'pamphlet' | 'banner' | 'image' | 'text';
   /** Caption text for Instagram preview (separate from OCR-extracted text). */
   instagramCaption?: string;
   /** Hashtags shown after caption in Instagram layout. */
   instagramHashtags?: string[];
   /** Brand account username shown in Instagram header. */
   instagramAccount?: string;
+  /** Optional file upload handler for drag-and-drop on preview */
+  onFileUpload?: (file: File) => void;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -144,10 +150,13 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
   instagramCaption,
   instagramHashtags,
   instagramAccount = 'aurelia.skincare',
+  onFileUpload,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showCorrectedVersion, setShowCorrectedVersion] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+  const [viewMode, setViewMode] = useState<'visual' | 'ocr' | 'split'>('visual');
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const handleZoomIn    = () => setZoomLevel(prev => Math.min(prev + 0.15, 1.5));
   const handleZoomOut   = () => setZoomLevel(prev => Math.max(prev - 0.15, 0.75));
@@ -231,6 +240,42 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* View Mode Toggle when an image is present */}
+        {displayImageUrl && !showCorrectedVersion && (
+          <div style={{ display: 'flex', background: '#F1F5F9', padding: '2px', borderRadius: '8px', border: '1px solid #CBD5E1', marginRight: '4px' }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${viewMode === 'visual' ? 'btn-brand' : 'btn-secondary'}`}
+              style={{ fontSize: '10.5px', padding: '3px 8px', border: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
+              onClick={() => setViewMode('visual')}
+              title="Show visual ad creative with pinpoint error markers"
+            >
+              <Layers size={11} />
+              <span>Ad Image</span>
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${viewMode === 'ocr' ? 'btn-brand' : 'btn-secondary'}`}
+              style={{ fontSize: '10.5px', padding: '3px 8px', border: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
+              onClick={() => setViewMode('ocr')}
+              title="Show OCR recognized draft text"
+            >
+              <ScanText size={11} />
+              <span>OCR Text</span>
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${viewMode === 'split' ? 'btn-brand' : 'btn-secondary'}`}
+              style={{ fontSize: '10.5px', padding: '3px 8px', border: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
+              onClick={() => setViewMode('split')}
+              title="Show visual creative and OCR copy side by side"
+            >
+              <Columns size={11} />
+              <span>Split</span>
+            </button>
+          </div>
+        )}
+
         <button className={`btn btn-sm ${!showCorrectedVersion ? 'btn-brand' : 'btn-secondary'}`} style={{ fontSize: '11.5px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setShowCorrectedVersion(false)}>
           <Eye size={13} /><span>Old (Draft)</span>
         </button>
@@ -304,6 +349,152 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
     </div>
   );
 
+  const ocrTextCard = (
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '460px',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '14px',
+        border: '1.5px solid #CBD5E1',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '14px'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ScanText size={18} color="#2563EB" />
+          <span style={{ fontWeight: 800, fontSize: '13.5px', color: '#0F172A' }}>
+            OCR Recognized Draft Copy
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className="badge badge-neutral" style={{ fontSize: '10px', backgroundColor: '#EFF6FF', color: '#1D4ED8' }}>
+            {extractedVia}
+          </span>
+          {ocrConfidence && (
+            <span className="badge badge-success" style={{ fontSize: '10px' }}>
+              {ocrConfidence.toFixed(0)}% Accuracy
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '10.5px', padding: '2px 7px', display: 'flex', alignItems: 'center', gap: '3px' }}
+            onClick={() => {
+              navigator.clipboard.writeText(rawText);
+              setCopiedText(true);
+              setTimeout(() => setCopiedText(false), 2000);
+            }}
+            title="Copy extracted OCR copy"
+          >
+            <Copy size={11} />
+            <span>{copiedText ? 'Copied!' : 'Copy'}</span>
+          </button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: '11px', color: '#64748B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>Recognized by Tesseract Engine · Editable in Left Pane</span>
+        <span>{rawText ? `${rawText.trim().split(/\s+/).filter(Boolean).length} words` : '0 words'}</span>
+      </div>
+
+      <div
+        style={{
+          fontSize: '13px',
+          lineHeight: '1.7',
+          color: '#1E293B',
+          fontFamily: 'monospace, sans-serif',
+          whiteSpace: 'pre-wrap',
+          backgroundColor: '#FAF5EF',
+          padding: '14px',
+          borderRadius: '10px',
+          border: '1px solid #E2E8F0',
+          maxHeight: '320px',
+          overflowY: 'auto'
+        }}
+      >
+        {(!rawText || rawText.trim().length === 0) ? (
+          <div style={{ textAlign: 'center', padding: '24px 10px', color: '#94A3B8', fontStyle: 'italic' }}>
+            No OCR text extracted yet. Run audit or paste an image/copy to view text here.
+          </div>
+        ) : (
+          rawText.split('\n').map((line, lIdx) => {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) return <div key={lIdx} style={{ height: '10px' }} />;
+            const mf = findings.find(f => f.flaggedText && trimmedLine.toLowerCase().includes(f.flaggedText.replace(/['"]/g, '').toLowerCase().trim()));
+            const isResolved = mf?.decision === 'ACCEPTED';
+            const isSelected = mf && selectedFindingId === mf.id;
+
+            return (
+              <div
+                key={lIdx}
+                style={{
+                  margin: '3px 0',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: mf ? (isResolved ? '#F0FDF4' : isSelected ? '#EFF6FF' : '#FEF2F2') : 'transparent',
+                  border: mf ? `1px solid ${isResolved ? '#86EFAC' : isSelected ? '#3B82F6' : '#FECACA'}` : 'none',
+                  color: mf ? (isResolved ? '#166534' : '#991B1B') : '#1E293B',
+                  fontWeight: mf ? 600 : 400,
+                  cursor: mf ? 'pointer' : 'default',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onClick={() => mf && onSelectFinding(mf.id)}
+              >
+                <span>{line}</span>
+                {mf && (
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: 800,
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                      backgroundColor: isResolved ? '#16A34A' : '#DC2626',
+                      color: '#FFF',
+                      flexShrink: 0
+                    }}
+                  >
+                    {isResolved ? '✓ Fixed' : `Pin ${mf.pinNumber}`}
+                  </span>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {findings.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Pins matched:</span>
+          {findings.map(f => (
+            <button
+              key={f.id}
+              className="btn btn-sm"
+              style={{
+                fontSize: '10.5px',
+                padding: '2px 7px',
+                borderRadius: '8px',
+                backgroundColor: f.decision === 'ACCEPTED' ? '#F0FDF4' : selectedFindingId === f.id ? '#EFF6FF' : '#FEF2F2',
+                border: `1px solid ${f.decision === 'ACCEPTED' ? '#86EFAC' : selectedFindingId === f.id ? '#3B82F6' : '#FECACA'}`,
+                color: f.decision === 'ACCEPTED' ? '#166534' : selectedFindingId === f.id ? '#1D4ED8' : '#DC2626'
+              }}
+              onClick={() => onSelectFinding(f.id)}
+            >
+              Pin {f.pinNumber}: {f.ruleType}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
@@ -311,7 +502,59 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px' }}>
       {headerControls}
 
-      <div style={{ flex: 1, minHeight: '520px', backgroundColor: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '14px', overflowY: 'auto', overflowX: 'hidden', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: resolvedFormat === 'banner' ? '14px' : '20px 16px', position: 'relative' }}>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDraggingOver(true);
+        }}
+        onDragLeave={() => setIsDraggingOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDraggingOver(false);
+          if (e.dataTransfer.files && e.dataTransfer.files[0] && onFileUpload) {
+            onFileUpload(e.dataTransfer.files[0]);
+          }
+        }}
+        style={{
+          flex: 1,
+          minHeight: '520px',
+          backgroundColor: '#F1F5F9',
+          border: isDraggingOver ? '2px dashed #2563EB' : '1px solid #CBD5E1',
+          borderRadius: '14px',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          padding: resolvedFormat === 'banner' ? '14px' : '20px 16px',
+          position: 'relative',
+          transition: 'border 0.2s ease'
+        }}
+      >
+        {isDraggingOver && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(239, 246, 255, 0.94)',
+              border: '3px dashed #2563EB',
+              borderRadius: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              zIndex: 100,
+              backdropFilter: 'blur(4px)'
+            }}
+          >
+            <Upload size={38} color="#2563EB" />
+            <span style={{ fontWeight: 800, fontSize: '15px', color: '#1E40AF' }}>
+              Drop Creative Image or PDF to load & run Tesseract OCR
+            </span>
+          </div>
+        )}
+
         <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center', transition: 'transform 0.2s ease', position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
           {/* Background Scene Vision Scanner Warning Banner */}
@@ -358,8 +601,11 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
             </div>
           )}
 
+          {/* OCR TEXT ONLY VIEW */}
+          {displayImageUrl && !showCorrectedVersion && viewMode === 'ocr' && ocrTextCard}
+
           {/* ──────────────── INSTAGRAM ──────────────── */}
-          {resolvedFormat === 'instagram' && !showCorrectedVersion && (
+          {viewMode !== 'ocr' && resolvedFormat === 'instagram' && !showCorrectedVersion && (
             <div style={{ width: '100%', maxWidth: '430px', backgroundColor: '#FFFFFF', borderRadius: '12px', overflow: 'hidden', border: '1px solid #DBDBDB', boxShadow: '0 4px 24px rgba(0,0,0,0.12)', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
               {/* Account header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
@@ -485,6 +731,19 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
                   </span>
                 </div>
               )}
+
+              {/* Collapsible Recognized OCR Text Preview inside Instagram layout */}
+              {rawText && rawText.trim().length > 0 && (
+                <details style={{ margin: '4px 14px 12px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '6px 10px', fontSize: '11px' }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#2563EB', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ScanText size={12} />
+                    <span>View Recognized Image Copy (OCR)</span>
+                  </summary>
+                  <div style={{ marginTop: '6px', fontSize: '11px', color: '#1E293B', whiteSpace: 'pre-wrap', lineHeight: 1.5, maxHeight: '120px', overflowY: 'auto', backgroundColor: '#FAF5EF', padding: '8px', borderRadius: '6px' }}>
+                    {rawText}
+                  </div>
+                </details>
+              )}
             </div>
           )}
 
@@ -509,7 +768,7 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
           )}
 
           {/* ──────────────── PAMPHLET ──────────────── */}
-          {resolvedFormat === 'pamphlet' && !showCorrectedVersion && (
+          {viewMode !== 'ocr' && resolvedFormat === 'pamphlet' && !showCorrectedVersion && (
             <div style={{ width: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 14px', width: '100%', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -539,7 +798,7 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
           {resolvedFormat === 'pamphlet' && showCorrectedVersion && <div style={{ width: '420px' }}>{fixedTextCard}</div>}
 
           {/* ──────────────── BANNER ──────────────── */}
-          {resolvedFormat === 'banner' && !showCorrectedVersion && (
+          {viewMode !== 'ocr' && resolvedFormat === 'banner' && !showCorrectedVersion && (
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '7px 14px', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -573,7 +832,7 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
           {resolvedFormat === 'banner' && showCorrectedVersion && <div style={{ width: '100%' }}>{fixedTextCard}</div>}
 
           {/* ──────────────── NEUTRAL IMAGE ──────────────── */}
-          {resolvedFormat === 'image' && !showCorrectedVersion && resolvedImageUrl && (
+          {viewMode !== 'ocr' && resolvedFormat === 'image' && !showCorrectedVersion && resolvedImageUrl && (
             <div style={{ width: '420px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {findings.length > 0 && (
                 <div style={{ backgroundColor: '#FEF2F2', border: '1.5px solid #FECACA', color: '#991B1B', padding: '6px 14px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -671,7 +930,14 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
           )}
           {resolvedFormat === 'image' && showCorrectedVersion && <div style={{ width: '420px' }}>{fixedTextCard}</div>}
 
-          {/* ──────────────── TEXT (no image asset) ──────────────── */}
+          {/* SPLIT VIEW MODE: Render OCR copy right below visual creative */}
+          {displayImageUrl && !showCorrectedVersion && viewMode === 'split' && (
+            <div style={{ marginTop: '16px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+              {ocrTextCard}
+            </div>
+          )}
+
+          {/* ──────────────── TEXT (no image asset / Pasted Custom Copy) ──────────────── */}
           {resolvedFormat === 'text' && (
             <div style={{ width: '460px', minHeight: '480px', backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #CBD5E1', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ borderBottom: '1.5px solid #E2E8F0', paddingBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -695,15 +961,29 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
                 </div>
               ) : (
                 <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', padding: '8px 14px', borderRadius: '8px', fontSize: '11.5px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AlertCircle size={15} color="#DC2626" /><span>Click any highlighted phrase to inspect Brand Memory rule</span>
+                  <AlertCircle size={15} color="#DC2626" /><span>Live Draft Copy Preview · Pins highlight rule violations</span>
                 </div>
               )}
 
               <div style={{ fontSize: '13.5px', lineHeight: '1.8', color: '#1E293B', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-wrap', backgroundColor: '#FAF5EF', padding: '16px 18px', borderRadius: '12px', border: '1px solid #E2E8F0', minHeight: '260px' }}>
-                {!showCorrectedVersion ? (() => {
+                {(!rawText || rawText.trim().length === 0) ? (
+                  <div style={{ textAlign: 'center', padding: '40px 16px', color: '#64748B' }}>
+                    <div style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', color: '#2563EB' }}>
+                      <FileText size={26} />
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#1E293B', marginBottom: '4px' }}>
+                      Pasted Draft Copy Screen
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748B', maxWidth: '320px', margin: '0 auto', lineHeight: 1.5 }}>
+                      Type or paste your marketing text into the editor on the left (or press <strong>Ctrl+V</strong>) to preview and audit against Brand Memory.
+                    </div>
+                  </div>
+                ) : !showCorrectedVersion ? (() => {
                   const lines = rawText.split('\n');
                   return lines.map((line, lIdx) => {
-                    const mf = findings.find(f => f.flaggedText && line.toLowerCase().includes(f.flaggedText.replace(/['"]/g, '').toLowerCase().trim()));
+                    const trimmed = line.trim();
+                    if (!trimmed) return <div key={lIdx} style={{ height: '10px' }} />;
+                    const mf = findings.find(f => f.flaggedText && trimmed.toLowerCase().includes(f.flaggedText.replace(/['"]/g, '').toLowerCase().trim()));
                     const wasChanged = changedLines.has(lIdx);
                     if (mf) {
                       const isResolved = mf.decision === 'ACCEPTED';
@@ -731,14 +1011,23 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
                 })() : <div>{getResolvedText()}</div>}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Identified Issues:</span>
-                {findings.map(f => (
-                  <button key={f.id} className="btn btn-sm" style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', backgroundColor: f.decision === 'ACCEPTED' ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${f.decision === 'ACCEPTED' ? '#BBF7D0' : '#FECACA'}`, color: f.decision === 'ACCEPTED' ? '#166534' : '#DC2626' }} onClick={() => onSelectFinding(f.id)}>
-                    Pin {f.pinNumber}: {f.ruleType}
-                  </button>
-                ))}
-              </div>
+              {rawText && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748B' }}>
+                  <span>{rawText.trim().split(/\s+/).filter(Boolean).length} words · {rawText.length} characters</span>
+                  <span>{findings.length} brand finding{findings.length !== 1 ? 's' : ''} detected</span>
+                </div>
+              )}
+
+              {findings.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Identified Issues:</span>
+                  {findings.map(f => (
+                    <button key={f.id} className="btn btn-sm" style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', backgroundColor: f.decision === 'ACCEPTED' ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${f.decision === 'ACCEPTED' ? '#BBF7D0' : '#FECACA'}`, color: f.decision === 'ACCEPTED' ? '#166534' : '#DC2626' }} onClick={() => onSelectFinding(f.id)}>
+                      Pin {f.pinNumber}: {f.ruleType}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
