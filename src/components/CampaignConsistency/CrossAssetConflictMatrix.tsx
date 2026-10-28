@@ -106,10 +106,31 @@ export const CrossAssetConflictMatrix: React.FC<CrossAssetConflictMatrixProps> =
               }}
             >
               {conflict.involvedAssets.map((ia, idx) => {
-                const isConflicting = ia.detectedValue.includes('1,099') ||
-                  ia.detectedValue.includes('v2') ||
-                  ia.detectedValue.includes('most loved') ||
-                  ia.detectedValue.toLowerCase().includes('missing');
+                const valLower = ia.detectedValue.toLowerCase();
+                const isConflicting =
+                  conflict.involvedAssets.length === 1
+                    ? true
+                    : conflict.type === 'Price Discrepancy'
+                    ? (() => {
+                        const detectedNums = ia.detectedValue.replace(/[^0-9]/g, '');
+                        const validPriceMatch = conflict.approvedTruth.validValue.match(/₹?([0-9,]+)/);
+                        if (validPriceMatch) {
+                          const approvedNum = validPriceMatch[1].replace(/,/g, '');
+                          return detectedNums !== approvedNum;
+                        }
+                        return false;
+                      })()
+                    : valLower.includes('v2') ||
+                      valLower.includes('deprecated') ||
+                      valLower.includes('outdated') ||
+                      valLower.includes('most loved') ||
+                      valLower.includes('miracle') ||
+                      valLower.includes('missing') ||
+                      valLower.includes('expired') ||
+                      valLower.includes('30 sept') ||
+                      valLower.includes('warning') ||
+                      valLower.includes('restricted') ||
+                      valLower.includes('unverified');
 
                 return (
                   <div

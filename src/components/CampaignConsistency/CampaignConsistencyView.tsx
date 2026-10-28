@@ -19,6 +19,7 @@ import { Campaign, CampaignAsset, TeamCampaignBatch } from '../../types/campaign
 import { BrandKnowledgeBase } from '../../types/brand';
 import { auditCampaignConsistency, autoAlignCampaignAssets } from '../../services/campaignEngine';
 import { saveCampaign } from '../../services/storageService';
+import { isValidImageUrl } from '../../services/imageStorage';
 import { AssetCardsGrid } from './AssetCardsGrid';
 import { AddAssetModal } from './AddAssetModal';
 import { CrossAssetConflictMatrix } from './CrossAssetConflictMatrix';
@@ -44,7 +45,6 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
   const [alignmentSuccessMessage, setAlignmentSuccessMessage] = useState<string | null>(null);
 
   // Derived baseline from Module 1 Knowledge Base
-  const benchmarkPrice = kb.products[0]?.currentPrice || 1299;
   const benchmarkTagline = kb.tone.primaryTagline;
   const benchmarkLogo = kb.logos.find(l => l.status === 'Approved Current')?.version || 'v3.0';
   const benchmarkDisclaimer = kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
@@ -107,22 +107,29 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
     const { updatedCampaign, alignedCount } = autoAlignCampaignAssets(campaign, kb);
     onUpdateCampaign(updatedCampaign);
     saveCampaign(updatedCampaign);
-    setAlignmentSuccessMessage(`Successfully auto-aligned ${alignedCount} creative assets! All prices set to ₹${benchmarkPrice.toLocaleString('en-IN')}, logos upgraded to ${benchmarkLogo}, and disclaimers applied.`);
+    setAlignmentSuccessMessage(`Successfully auto-aligned ${alignedCount} creative assets! All prices aligned to approved catalog rates, logos upgraded to ${benchmarkLogo}, and disclaimers applied.`);
     setTimeout(() => setAlignmentSuccessMessage(null), 5000);
   };
 
   const handleAutoAlignBatch = (teamName: string) => {
-    const currentPrice = kb.products[0]?.currentPrice ?? 1299;
+    const defaultPrice = kb.products[0]?.currentPrice ?? 1299;
     const currentLogoVersion = kb.logos.find(l => l.status === 'Approved Current')?.version || 'Logo v3 (Approved)';
     const approvedTagline = kb.tone.primaryTagline;
     const approvedDisclaimer = kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
 
     const newAssets = campaign.assets.map(asset => {
       if (asset.teamName !== teamName) return asset;
+      const matchedProd = asset.productSku
+        ? kb.products.find(p => p.sku === asset.productSku)
+        : asset.productId
+        ? kb.products.find(p => p.id === asset.productId)
+        : kb.products.find(p => asset.title.toLowerCase().includes(p.productName.toLowerCase()) || (p.aliases && p.aliases.some(a => asset.title.toLowerCase().includes(a.toLowerCase())))) || kb.products[0];
+      const targetPrice = matchedProd?.currentPrice ?? defaultPrice;
+
       return {
         ...asset,
-        extractedPrice: currentPrice,
-        extractedPriceStr: `₹${currentPrice.toLocaleString('en-IN')}`,
+        extractedPrice: targetPrice,
+        extractedPriceStr: `₹${targetPrice.toLocaleString('en-IN')}`,
         extractedLogoVersion: currentLogoVersion,
         extractedTagline: approvedTagline,
         extractedDisclaimer: approvedDisclaimer,
@@ -130,7 +137,7 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
         extractedBackground: '✓ Pearl Cream (#F7F5F0) clean approved laboratory backdrop',
         backgroundStatus: 'Clean' as const,
         backgroundFindings: [],
-        fullText: `${asset.title} - ${approvedTagline}. Price: ₹${currentPrice.toLocaleString('en-IN')}. ${approvedDisclaimer}`,
+        fullText: `${asset.title} - ${approvedTagline}. Price: ₹${targetPrice.toLocaleString('en-IN')}. ${approvedDisclaimer}`,
         status: 'In Sync' as const,
         conflictCount: 0
       };
@@ -235,15 +242,27 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
 
           {/* Approved Benchmark Price */}
           <div style={{ padding: '14px', backgroundColor: '#F0FDF4', borderRadius: '12px', border: '1.5px solid #BBF7D0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#166534', textTransform: 'uppercase', marginBottom: '8px' }}>
-              <Tag size={14} color="#16A34A" />
-              <span>Catalog Active Price</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>
+                <Tag size={14} color="#16A34A" />
+                <span>Catalog Active Prices</span>
+              </div>
+              <span style={{ fontSize: '10px', background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                {kb.products.length} SKUs
+              </span>
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#00473E' }}>
-              ₹{benchmarkPrice.toLocaleString('en-IN')}
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#00473E', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              {kb.products.slice(0, 3).map(prod => (
+                <div key={prod.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }} title={prod.productName}>
+                    {prod.productName.replace('Aurelia ', '')}
+                  </span>
+                  <span style={{ fontWeight: 800, color: '#00473E', fontSize: '12px' }}>₹{prod.currentPrice.toLocaleString('en-IN')}</span>
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize: '11px', color: '#15803D', marginTop: '4px' }}>
-              Moisturizer 50g (Monsoon ₹1,099 Expired)
+            <div style={{ fontSize: '10px', color: '#15803D', marginTop: '5px', borderTop: '1px dashed #BBF7D0', paddingTop: '3px' }}>
+              {kb.products.length > 3 ? `+ ${kb.products.length - 3} more catalog items` : 'Active catalog prices from Brand Memory'}
             </div>
           </div>
 
@@ -509,13 +528,54 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
                     }}
                   >
                     <div>
+                      {/* Optional Creative Image Preview */}
+                      {isValidImageUrl(asset.previewUrl) && (
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '130px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            marginBottom: '10px',
+                            border: '1px solid #CBD5E1',
+                            backgroundColor: '#FAF5EF'
+                          }}
+                        >
+                          <img
+                            src={asset.previewUrl}
+                            alt={asset.title}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        </div>
+                      )}
+
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                         <span className="badge badge-neutral" style={{ fontSize: '10px', textTransform: 'none' }}>
                           {asset.channel}
                         </span>
-                        <span className={`badge ${hasFaults ? 'badge-violation' : 'badge-success'}`} style={{ fontSize: '10px' }}>
-                          {hasFaults ? `${asset.conflictCount} Faults` : 'Clean / In Sync'}
-                        </span>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          {asset.auditStatus && (
+                            <span
+                              className={`badge ${
+                                asset.auditStatus === 'Blocked'
+                                  ? 'badge-violation'
+                                  : asset.auditStatus === 'Needs Review'
+                                  ? 'badge-unverified'
+                                  : 'badge-success'
+                              }`}
+                              style={{ fontSize: '9px', padding: '1px 5px' }}
+                            >
+                              {asset.auditStatus}
+                            </span>
+                          )}
+                          <span className={`badge ${hasFaults ? 'badge-violation' : 'badge-success'}`} style={{ fontSize: '10px' }}>
+                            {hasFaults ? `${asset.conflictCount} Faults` : 'Clean / In Sync'}
+                          </span>
+                        </div>
                       </div>
 
                       <div style={{ fontWeight: 700, fontSize: '14px', color: '#0F172A', marginBottom: '8px' }}>
@@ -537,7 +597,7 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: '#64748B' }}>Extracted Price:</span>
-                          <strong style={{ color: asset.extractedPriceStr?.includes('1,099') ? '#DC2626' : '#00473E' }}>
+                          <strong style={{ color: hasFaults ? '#DC2626' : '#00473E' }}>
                             {asset.extractedPriceStr}
                           </strong>
                         </div>
@@ -614,6 +674,7 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
         <AddAssetModal
           onClose={() => setIsAddModalOpen(false)}
           onAddAsset={handleAddAsset}
+          products={kb.products}
         />
       )}
     </div>

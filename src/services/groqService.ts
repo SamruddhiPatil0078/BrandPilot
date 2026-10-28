@@ -5,8 +5,8 @@
 
 const BACKEND_CHAT_ENDPOINT = '/api/groq/chat';
 const BACKEND_HEALTH_ENDPOINT = '/api/groq/health';
-export const DEFAULT_MODEL = 'openai/gpt-oss-120b';
-export const FAST_MODEL = 'openai/gpt-oss-20b';
+export const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+export const FAST_MODEL = 'llama-3.1-8b-instant';
 
 export interface GroqChatMessage {
   role: 'system' | 'user' | 'assistant';

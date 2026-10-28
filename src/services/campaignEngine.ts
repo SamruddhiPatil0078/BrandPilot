@@ -1,5 +1,6 @@
 import { Campaign, CampaignAsset, CampaignConflict } from '../types/campaign';
 import { BrandKnowledgeBase } from '../types/brand';
+import { matchProductFromCreative, formatPriceInr } from './productCatalogService';
 
 export function matchesRestrictedKeyword(text: string, keyword: string): boolean {
   if (!text || !keyword) return false;
@@ -25,18 +26,88 @@ export function auditCampaignConsistency(
   const assets = [...campaign.assets];
   const conflicts: CampaignConflict[] = [];
 
-  // 1. Cross-Asset Price Check
+  // 1. Per-Asset Catalog Price Check
+  const conflictingCatalogAssets: { asset: CampaignAsset; approvedPrice: number; sku: string; prodName: string }[] = [];
+  assets.forEach(asset => {
+    if (asset.extractedPrice !== undefined && asset.extractedPrice > 0) {
+      const match = matchProductFromCreative(
+        `${asset.title} ${asset.fullText}`,
+        kb.products,
+        {
+          explicitSku: asset.productSku,
+          explicitProductId: asset.productId,
+          assetTitle: asset.title
+        }
+      );
+
+      if (match.isEstablished && match.product) {
+        if (asset.extractedPrice !== match.product.currentPrice) {
+          conflicts.push({
+            id: `conf-catalog-price-${asset.id}`,
+            type: 'Price Discrepancy',
+            title: `Price Discrepancy for ${asset.title} (${match.product.sku})`,
+            severity: 'HIGH',
+            description: `${asset.title} (${asset.channel}) displays price ${asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)}, which conflicts with the approved catalog price ${formatPriceInr(match.product.currentPrice)} for ${match.product.productName} (SKU: ${match.product.sku}).`,
+            involvedAssets: [{
+              assetId: asset.id,
+              assetTitle: asset.title,
+              channel: asset.channel,
+              teamName: asset.teamName,
+              detectedValue: asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)
+            }],
+            approvedTruth: {
+              rule: `Approved Price for ${match.product.productName} (${match.product.sku})`,
+              validValue: `${formatPriceInr(match.product.currentPrice)} (Standard Catalog ${kb.activeVersion})`,
+              sourceDocument: `Product Pricing Catalog ${kb.activeVersion}`
+            },
+            suggestedAlignment: `Update ${asset.title} price copy from ${asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)} to ${formatPriceInr(match.product.currentPrice)}.`
+          });
+          conflictingCatalogAssets.push({
+            asset,
+            approvedPrice: match.product.currentPrice,
+            sku: match.product.sku,
+            prodName: match.product.productName
+          });
+        }
+      } else if (!match.isEstablished && match.product && asset.extractedPrice !== match.product.currentPrice) {
+        // Uncertain match - flag for human review
+        conflicts.push({
+          id: `conf-uncertain-price-${asset.id}`,
+          type: 'Price Discrepancy',
+          title: `Uncertain Product Price Alignment for ${asset.title}`,
+          severity: 'MEDIUM',
+          description: `${asset.title} displays price ${asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)} and references "${match.product.productName}", but product identity could not be definitively confirmed. Manual review required.`,
+          involvedAssets: [{
+            assetId: asset.id,
+            assetTitle: asset.title,
+            channel: asset.channel,
+            teamName: asset.teamName,
+            detectedValue: asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)
+          }],
+          approvedTruth: {
+            rule: `Catalog Reference for ${match.product.productName} (${match.product.sku})`,
+            validValue: `${formatPriceInr(match.product.currentPrice)} (if confirmed)`,
+            sourceDocument: `Product Pricing Catalog ${kb.activeVersion}`
+          },
+          suggestedAlignment: `Confirm whether this asset represents SKU ${match.product.sku} before approving commercial pricing.`
+        });
+      }
+    }
+  });
+
+  // 1b. Cross-Asset Price Discrepancy Check
   const assetsWithPrice = assets.filter(a => a.extractedPrice !== undefined && a.extractedPrice > 0);
   const priceSet = new Set(assetsWithPrice.map(a => a.extractedPrice));
 
   if (priceSet.size > 1) {
-    const approvedPrice = kb.products[0]?.currentPrice || 1299;
+    const defaultProduct = kb.products[0];
+    const approvedPrice = defaultProduct?.currentPrice || 1299;
     conflicts.push({
-      id: `conf-price-${Date.now()}`,
+      id: 'conf-price-cross-assets',
       type: 'Price Discrepancy',
       title: 'Conflicting Product Pricing Across Campaign Assets',
       severity: 'HIGH',
-      description: `Multiple conflicting prices detected across channels: ${Array.from(priceSet).map(p => `₹${p}`).join(', ')}. Instagram displays legacy rate ₹1,099 while Website displays ₹1,299.`,
+      description: `Multiple conflicting prices detected across channels: ${Array.from(priceSet).map(p => `₹${p}`).join(', ')}. Different channels display conflicting rates for active products.`,
       involvedAssets: assetsWithPrice.map(a => ({
         assetId: a.id,
         assetTitle: a.title,
@@ -44,11 +115,11 @@ export function auditCampaignConsistency(
         detectedValue: a.extractedPriceStr || `₹${a.extractedPrice}`
       })),
       approvedTruth: {
-        rule: `Approved Price for ${kb.products[0]?.productName || 'Moisturizer'}`,
+        rule: `Approved Catalog Pricing Standard`,
         validValue: `₹${approvedPrice.toLocaleString('en-IN')} (Standard Catalog ${kb.activeVersion})`,
         sourceDocument: `Product Pricing Catalog ${kb.activeVersion}`
       },
-      suggestedAlignment: `Standardize all assets to the approved current price of ₹${approvedPrice.toLocaleString('en-IN')}.`
+      suggestedAlignment: `Standardize all assets to their approved current catalog prices.`
     });
   }
 
@@ -61,7 +132,7 @@ export function auditCampaignConsistency(
 
   if (outdatedLogoAssets.length > 0) {
     conflicts.push({
-      id: `conf-logo-${Date.now()}`,
+      id: 'conf-logo-deprecated',
       type: 'Outdated Logo',
       title: 'Deprecated Logo v2 in Active Campaign Assets',
       severity: 'MEDIUM',
@@ -92,7 +163,7 @@ export function auditCampaignConsistency(
   const uniqueTaglines = Array.from(new Set(taglinesFound.map(t => t.tagline.trim().toLowerCase())));
   if (uniqueTaglines.length > 1) {
     conflicts.push({
-      id: `conf-tagline-${Date.now()}`,
+      id: 'conf-tagline-divergence',
       type: 'Tagline Inconsistency',
       title: 'Tagline Divergence & Unapproved Slogan Across Channels',
       severity: 'HIGH',
@@ -120,7 +191,7 @@ export function auditCampaignConsistency(
 
   if (missingDisclaimerAssets.length > 0) {
     conflicts.push({
-      id: `conf-disc-${Date.now()}`,
+      id: 'conf-disc-omitted',
       type: 'Missing Disclaimer',
       title: 'Mandatory Clinical Disclaimer Omitted in Social Channel',
       severity: 'HIGH',
@@ -148,7 +219,7 @@ export function auditCampaignConsistency(
 
   if (expiredDateAssets.length > 0) {
     conflicts.push({
-      id: `conf-date-${Date.now()}`,
+      id: 'conf-date-expiry',
       type: 'Date Expiry Conflict',
       title: 'Campaign Expiration Date Drift Across Channels',
       severity: 'MEDIUM',
@@ -182,7 +253,7 @@ export function auditCampaignConsistency(
 
   if (assetsWithBgWarnings.length > 0) {
     conflicts.push({
-      id: `conf-bg-${Date.now()}`,
+      id: 'conf-bg-warning',
       type: 'Background Scene Warning',
       title: 'Restricted Background Visual Elements in Campaign Creatives',
       severity: 'MEDIUM',
@@ -208,7 +279,15 @@ export function auditCampaignConsistency(
     const assetConflicts = conflicts.filter(c =>
       c.involvedAssets.some(ia => ia.assetId === asset.id && (
         c.type === 'Outdated Logo' ? ia.detectedValue.includes('v2') || ia.detectedValue.includes('Deprecated') :
-        c.type === 'Price Discrepancy' ? ia.detectedValue.includes('1,099') :
+        c.type === 'Price Discrepancy' ? (() => {
+          const match = matchProductFromCreative(`${asset.title} ${asset.fullText}`, kb.products, {
+            explicitSku: asset.productSku,
+            explicitProductId: asset.productId,
+            assetTitle: asset.title
+          });
+          const target = match.product?.currentPrice ?? kb.products[0]?.currentPrice ?? 1299;
+          return asset.extractedPrice !== undefined && asset.extractedPrice > 0 && asset.extractedPrice !== target;
+        })() :
         c.type === 'Missing Disclaimer' ? ia.detectedValue.toLowerCase().includes('missing') || ia.detectedValue.toLowerCase().includes('no') :
         c.type === 'Tagline Inconsistency' ? ia.detectedValue.includes('most loved') || ia.detectedValue.includes('miracle') || ia.detectedValue.includes('care') :
         c.type === 'Date Expiry Conflict' ? ia.detectedValue.toLowerCase().includes('expired') || ia.detectedValue.toLowerCase().includes('30 sept') :
@@ -260,10 +339,20 @@ export function autoAlignCampaignAssets(
     let newFullText = asset.fullText;
 
     // 1. Align Price
-    if (asset.extractedPrice !== undefined && asset.extractedPrice !== currentPrice) {
-      newPrice = currentPrice;
-      newPriceStr = `₹${currentPrice.toLocaleString('en-IN')}`;
-      newFullText = newFullText.replace(/₹\s?1[,.]?099/g, `₹${currentPrice.toLocaleString('en-IN')}`);
+    const match = matchProductFromCreative(`${asset.title} ${asset.fullText}`, kb.products, {
+      explicitSku: asset.productSku,
+      explicitProductId: asset.productId,
+      assetTitle: asset.title
+    });
+    const assetTargetPrice = match.product?.currentPrice ?? kb.products[0]?.currentPrice ?? 1299;
+
+    if (asset.extractedPrice !== undefined && asset.extractedPrice !== assetTargetPrice) {
+      newPrice = assetTargetPrice;
+      newPriceStr = `₹${assetTargetPrice.toLocaleString('en-IN')}`;
+      if (asset.extractedPrice) {
+        newFullText = newFullText.replace(new RegExp(`₹\\s?${asset.extractedPrice}|\\b${asset.extractedPrice}\\b`, 'g'), `₹${assetTargetPrice.toLocaleString('en-IN')}`);
+      }
+      newFullText = newFullText.replace(/₹\s?1[,.]?099/g, `₹${assetTargetPrice.toLocaleString('en-IN')}`);
       wasModified = true;
     }
 

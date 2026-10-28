@@ -16,6 +16,17 @@ export interface MarkerCoordinate {
   pinNumber: number;
 }
 
+export interface FindingPriceDetails {
+  creativePrice?: number;
+  creativePriceFormatted?: string;
+  approvedPrice?: number;
+  approvedPriceFormatted?: string;
+  matchedProductName?: string;
+  matchedProductSku?: string;
+  matchConfidence?: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNCERTAIN';
+  reviewStatus?: 'CONFIRMED_MISMATCH' | 'UNCERTAIN_MATCH' | 'UNVERIFIED_PRICE' | 'APPROVED_PRICE';
+}
+
 export interface AuditFinding {
   id: string;
   pinNumber: number;
@@ -38,6 +49,7 @@ export interface AuditFinding {
   decisionNote?: string;
   decisionBy?: string;
   decisionTimestamp?: string;
+  priceDetails?: FindingPriceDetails;
 }
 
 export interface AuditReport {
@@ -51,6 +63,7 @@ export interface AuditReport {
   auditTimestamp: string;
   overallScore: number; // 0-100
   brandVersionAudited: string;
+  approvalStatus?: 'Approved' | 'Needs Review' | 'Blocked';
   findings: AuditFinding[];
   summary: {
     totalFindings: number;

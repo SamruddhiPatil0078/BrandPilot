@@ -2,6 +2,12 @@
 import { BrandKnowledgeBase } from '../types/brand';
 import { AuditFinding, AuditReport } from '../types/audit';
 import { matchesRestrictedKeyword } from './campaignEngine';
+import {
+  matchProductFromCreative,
+  extractPricesFromText,
+  formatPriceInr,
+  calculateAssetAuditStatus
+} from './productCatalogService';
 
 export interface AuditOcrWord {
   text: string;
@@ -24,6 +30,13 @@ export interface AuditRunOptions {
   detectedLogoTag?: string;
   backgroundDescription?: string;
   detectedBackgroundTag?: string;
+
+  // Explicit catalog mapping
+  explicitProductSku?: string;
+  explicitProductId?: string;
+
+  // Previous findings to preserve reviewer decisions across runs
+  existingFindings?: AuditFinding[];
 
   // Coordinates must refer to the exact image processed by OCR.
   ocrWords?: AuditOcrWord[];
@@ -379,11 +392,22 @@ export async function runContentAudit(
           )
         : undefined;
 
+    // Check if an existing finding decision should be preserved across re-audits
+    const existing = options.existingFindings?.find(
+      ef => ef.ruleType === finding.ruleType && (
+        ef.flaggedText.toLowerCase() === finding.flaggedText.toLowerCase() ||
+        (matchedPhrase && ef.flaggedText.toLowerCase().includes(matchedPhrase.toLowerCase()))
+      )
+    );
+
     findings.push({
       ...finding,
-      id: `finding-${pinNumber}-${Date.now()}`,
+      id: existing?.id || `finding-${finding.ruleType.toLowerCase()}-${pinNumber}`,
       pinNumber,
-      decision: 'PENDING',
+      decision: existing?.decision || 'PENDING',
+      decisionNote: existing?.decisionNote,
+      decisionBy: existing?.decisionBy,
+      decisionTimestamp: existing?.decisionTimestamp,
 
       // Do not invent coordinates when OCR cannot locate the phrase.
       coordinate: bounds
@@ -604,69 +628,148 @@ export async function runContentAudit(
     );
   }
 
-  // 4. Price checks.
-  // Search for the outdated price with or without currency symbol (OCR may misread ₹).
-  const outdatedPrice = findMatchedPhrase(text, [
-    '₹1,099',
-    '₹1099',
-    '1,099',
-    '1099',
-  ]);
+  // 4. Product matching & dynamic price audit against approved catalog
+  const productMatch = matchProductFromCreative(
+    text,
+    kb.products,
+    {
+      explicitSku: options.explicitProductSku,
+      explicitProductId: options.explicitProductId,
+      assetTitle: options.assetTitle
+    }
+  );
 
-  // Also check for the 'JUST' keyword adjacent to the price — used for better OCR box placement.
-  const justPricePhrase = outdatedPrice && includesPhrase(text, 'just') ? 'JUST ' + outdatedPrice : outdatedPrice;
+  const extractedPrices = extractPricesFromText(text);
 
-  const serumPrice = findMatchedPhrase(text, [
-    '₹749',
-    '749',
-  ]);
+  if (extractedPrices.length > 0) {
+    for (const priceToken of extractedPrices) {
+      // Find wider phrase if available (e.g. "Only ₹1,299" or "JUST ₹1,099") for better OCR mapping
+      let pricePhraseForOcr = priceToken.rawText;
+      const lowerFullText = text.toLowerCase();
+      const lowerRawPrice = priceToken.rawText.toLowerCase();
+      if (lowerFullText.includes(`only ${lowerRawPrice}`)) {
+        pricePhraseForOcr = `Only ${priceToken.rawText}`;
+      } else if (lowerFullText.includes(`just ${lowerRawPrice}`)) {
+        pricePhraseForOcr = `JUST ${priceToken.rawText}`;
+      }
 
-  if (outdatedPrice) {
-    addFinding(
-      {
-        title: 'Price conflicts with approved catalog',
-        category: 'Verified rule violation',
-        severity: 'HIGH',
-        flaggedText: outdatedPrice,
-        explanation:
-          `The detected price may be outdated. The first product's current catalog price is ₹${currentApprovedPrice.toLocaleString('en-IN')}. Verify the product match before correcting it.`,
-        approvedSource: {
-          title: `Product Pricing ${kb.activeVersion}`,
-          version: kb.activeVersion,
-          referenceId: 'PRODUCT-PRICE',
-          validityNote: kb.products[0]?.validFrom,
-        },
-        suggestedFix: `₹${currentApprovedPrice.toLocaleString('en-IN')}`,
-        suggestedFixExplanation:
-          'Use the current approved catalog price after confirming the product.',
-        ruleType: 'Price',
-      },
-      // Try wider phrase first for OCR accuracy, fallback to just the price string
-      justPricePhrase ?? outdatedPrice
-    );
-  }
-
-  if (serumPrice) {
-    addFinding(
-      {
-        title: 'Potential expired promotional price',
-        category: 'Potential inconsistency',
-        severity: 'HIGH',
-        flaggedText: serumPrice,
-        explanation:
-          'The ₹749 price may be an expired promotion. Confirm the associated product and promotion dates against Brand Memory.',
+      if (productMatch.isEstablished && productMatch.product) {
+        const approvedPrice = productMatch.product.currentPrice;
+        if (priceToken.value !== approvedPrice) {
+          // Confirmed price mismatch!
+          addFinding(
+            {
+              title: `Price conflicts with approved catalog for ${productMatch.product.sku}`,
+              category: 'Verified rule violation',
+              severity: 'HIGH',
+              flaggedText: priceToken.rawText,
+              explanation: `The creative displays price ${priceToken.rawText}, but the approved catalog price for ${productMatch.product.productName} (SKU: ${productMatch.product.sku}) is ${formatPriceInr(approvedPrice)}. Price mismatch confirmed against catalog version ${kb.activeVersion}.`,
+              approvedSource: {
+                title: `Product Pricing Catalog ${kb.activeVersion}`,
+                version: kb.activeVersion,
+                referenceId: productMatch.product.sku,
+                validityNote: productMatch.product.validFrom
+              },
+              suggestedFix: formatPriceInr(approvedPrice),
+              suggestedFixExplanation: `Update displayed price to ${formatPriceInr(approvedPrice)}, the approved price for SKU ${productMatch.product.sku} in Product Facts.`,
+              ruleType: 'Price',
+              priceDetails: {
+                creativePrice: priceToken.value,
+                creativePriceFormatted: formatPriceInr(priceToken.value),
+                approvedPrice: approvedPrice,
+                approvedPriceFormatted: formatPriceInr(approvedPrice),
+                matchedProductName: productMatch.product.productName,
+                matchedProductSku: productMatch.product.sku,
+                matchConfidence: 'HIGH',
+                reviewStatus: 'CONFIRMED_MISMATCH'
+              }
+            },
+            pricePhraseForOcr
+          );
+        }
+      } else if (!productMatch.isEstablished && productMatch.product) {
+        // Product match is uncertain - flag for human review rather than inventing a definite violation
+        const candidatePrice = productMatch.product.currentPrice;
+        addFinding(
+          {
+            title: 'Uncertain Product Match — Price Verification Required',
+            category: 'Potential inconsistency',
+            severity: 'MEDIUM',
+            flaggedText: priceToken.rawText,
+            explanation: `The creative displays price ${priceToken.rawText} and mentions terms related to "${productMatch.product.productName}", but product identity is not definitively established. If this asset represents SKU ${productMatch.product.sku}, the approved price is ${formatPriceInr(candidatePrice)}. Human review required.`,
+            approvedSource: {
+              title: `Product Pricing Catalog ${kb.activeVersion}`,
+              version: kb.activeVersion,
+              referenceId: productMatch.product.sku,
+              validityNote: productMatch.product.validFrom
+            },
+            suggestedFix: formatPriceInr(candidatePrice),
+            suggestedFixExplanation: `Confirm product identity. If representing SKU ${productMatch.product.sku}, align price to ${formatPriceInr(candidatePrice)}.`,
+            ruleType: 'Price',
+            priceDetails: {
+              creativePrice: priceToken.value,
+              creativePriceFormatted: formatPriceInr(priceToken.value),
+              approvedPrice: candidatePrice,
+              approvedPriceFormatted: formatPriceInr(candidatePrice),
+              matchedProductName: productMatch.product.productName,
+              matchedProductSku: productMatch.product.sku,
+              matchConfidence: 'UNCERTAIN',
+              reviewStatus: 'UNCERTAIN_MATCH'
+            }
+          },
+          pricePhraseForOcr
+        );
+      } else {
+        // No product could be matched
+        addFinding(
+          {
+            title: 'Unmapped Product Price Display',
+            category: 'Potential inconsistency',
+            severity: 'MEDIUM',
+            flaggedText: priceToken.rawText,
+            explanation: `The creative displays price ${priceToken.rawText}, but no matching product was identified in the approved product catalog. Confirm product SKU mapping before publication.`,
+            approvedSource: {
+              title: `Product Pricing Catalog ${kb.activeVersion}`,
+              version: kb.activeVersion
+            },
+            suggestedFix: 'Link to catalog product SKU',
+            suggestedFixExplanation: 'Map this asset to an approved SKU in the product catalog.',
+            ruleType: 'Price',
+            priceDetails: {
+              creativePrice: priceToken.value,
+              creativePriceFormatted: formatPriceInr(priceToken.value),
+              matchConfidence: 'LOW',
+              reviewStatus: 'UNVERIFIED_PRICE'
+            }
+          },
+          pricePhraseForOcr
+        );
+      }
+    }
+  } else {
+    // If OCR/copy has NO detectable price, check if commercial creative should be flagged as unverified
+    // "If OCR fails to extract the price, report that the price could not be verified instead of silently approving the asset."
+    const isCommercialCreative = assetType === 'image' || extractedVia === 'Tesseract OCR' || /ad|banner|poster|promo|flyer|creative/i.test(assetTitle);
+    if (isCommercialCreative) {
+      addFinding({
+        title: 'Unverified Creative Price',
+        category: 'No supporting evidence found',
+        severity: 'MEDIUM',
+        flaggedText: 'Price not detected in creative',
+        explanation: 'Price could not be verified from the creative copy via OCR. Visual confirmation of displayed price required before publication approval.',
         approvedSource: {
           title: `Product Pricing Catalog ${kb.activeVersion}`,
           version: kb.activeVersion,
-          referenceId: 'SERUM-PRICE',
+          referenceId: 'PRICE-UNVERIFIED'
         },
-        suggestedFix: '₹899',
-        suggestedFixExplanation:
-          'Use ₹899 only after confirming it is the current approved price for this serum.',
+        suggestedFix: 'Verify displayed price manually',
+        suggestedFixExplanation: 'Confirm that creative artwork shows current approved catalog price.',
         ruleType: 'Price',
-      },
-      serumPrice
-    );
+        priceDetails: {
+          reviewStatus: 'UNVERIFIED_PRICE'
+        }
+      });
+    }
   }
 
   // 5. Terminology rules from Brand Memory.
@@ -936,6 +1039,7 @@ export async function runContentAudit(
   }
 
   const overallScore = calculateComplianceScore(findings);
+  const approvalStatus = calculateAssetAuditStatus(findings);
 
   return {
     id: `audit-${Date.now()}`,
@@ -949,6 +1053,7 @@ export async function runContentAudit(
     auditTimestamp: new Date().toISOString(),
     overallScore,
     brandVersionAudited: kb.activeVersion,
+    approvalStatus,
     findings,
     summary: {
       totalFindings: findings.length,

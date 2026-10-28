@@ -64,6 +64,7 @@ export const INITIAL_BRAND_KNOWLEDGE_BASE: BrandKnowledgeBase = {
       validUntil: '2027-12-31',
       approvalStatus: 'Approved',
       ingredientsSummary: '2% Multi-molecular Hyaluronic Acid, 5 Essential Ceramides, Squalane, Niacinamide',
+      aliases: ['Aurelia Deep Hydrating Moisturizer', 'Deep Hydrating Moisturizer', 'Hydrating Moisturizer', 'Moisturizer 50g'],
       priceHistory: [
         {
           id: 'ph1',
@@ -109,6 +110,7 @@ export const INITIAL_BRAND_KNOWLEDGE_BASE: BrandKnowledgeBase = {
       validUntil: '2027-06-30',
       approvalStatus: 'Approved',
       ingredientsSummary: '10% Ethyl Ascorbic Acid, Ferulic Acid, Centella Asiatica',
+      aliases: ['Aurelia Radiant Vitamin C Serum', 'Radiant Vitamin C Serum', 'Vitamin C Glow Serum', 'Vitamin C Serum', 'Glow Serum 30ml'],
       priceHistory: [
         {
           id: 'ph4',
@@ -144,6 +146,7 @@ export const INITIAL_BRAND_KNOWLEDGE_BASE: BrandKnowledgeBase = {
       validUntil: '2027-12-31',
       approvalStatus: 'Approved',
       ingredientsSummary: 'Oat Kernel Extract, Panthenol, Amino Acid Surfactants',
+      aliases: ['Aurelia Soothing Barrier Cleanser', 'Soothing Barrier Cleanser', 'Barrier Cleanser', 'Cleanser 150ml'],
       priceHistory: [
         {
           id: 'ph6',
@@ -728,6 +731,15 @@ export function loadBrandKnowledgeBase(): BrandKnowledgeBase {
       const parsed = JSON.parse(raw);
       if (!parsed.backgroundGuidelines) {
         parsed.backgroundGuidelines = INITIAL_BRAND_KNOWLEDGE_BASE.backgroundGuidelines;
+      }
+      if (Array.isArray(parsed.products)) {
+        parsed.products = parsed.products.map((p: any) => {
+          if (!p.aliases || p.aliases.length === 0) {
+            const initP = INITIAL_BRAND_KNOWLEDGE_BASE.products.find(ip => ip.id === p.id || ip.sku === p.sku);
+            return { ...p, aliases: initP?.aliases || [] };
+          }
+          return p;
+        });
       }
       return parsed;
     }

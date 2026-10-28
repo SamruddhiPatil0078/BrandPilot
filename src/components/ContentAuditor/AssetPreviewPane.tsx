@@ -175,7 +175,7 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
     return isReal ? previewUrl : null;
   }, [previewUrl]);
 
-  const displayImageUrl = resolvedImageUrl ?? '/assets/aurelia-pamphlet-ad.png';
+  const displayImageUrl = resolvedImageUrl;
 
   // ── Finding boxes (validated coordinates only) ─────────────────────────────
   const findingBoxes = useMemo(() => {
@@ -391,7 +391,60 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
               )}
 
               {/* Creative image */}
-              <ImageWithOverlay src={displayImageUrl} alt={assetTitle} findingBoxes={findingBoxes} selectedFindingId={selectedFindingId} onSelectFinding={onSelectFinding} findings={findings} containerStyle={{ width: '100%', backgroundColor: '#FAF5EF' }} />
+              {displayImageUrl ? (
+                <ImageWithOverlay
+                  src={displayImageUrl}
+                  alt={assetTitle}
+                  findingBoxes={findingBoxes}
+                  selectedFindingId={selectedFindingId}
+                  onSelectFinding={onSelectFinding}
+                  findings={findings}
+                  containerStyle={{ width: '100%', backgroundColor: '#FAF5EF' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    minHeight: '260px',
+                    backgroundColor: '#F8FAFC',
+                    borderTop: '1px solid #E2E8F0',
+                    borderBottom: '1px solid #E2E8F0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '28px 20px',
+                    textAlign: 'center',
+                    gap: '10px'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '50%',
+                      backgroundColor: '#EFF6FF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#2563EB'
+                    }}
+                  >
+                    <ImageIcon size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A', marginBottom: '3px' }}>
+                      No Creative Image Attached
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: '#64748B', maxWidth: '280px', lineHeight: '1.4' }}>
+                      Attach a creative image to this asset to inspect visual branding, logo placement, and OCR pinpoint markers.
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#059669', backgroundColor: '#ECFDF5', padding: '3px 10px', borderRadius: '5px', fontWeight: 600 }}>
+                    Metadata evidence audit active
+                  </div>
+                </div>
+              )}
 
               {/* Engagement toolbar */}
               <div style={{ padding: '8px 14px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -528,6 +581,92 @@ export const AssetPreviewPane: React.FC<AssetPreviewPaneProps> = ({
                 </div>
               )}
               <ImageWithOverlay src={resolvedImageUrl} alt={assetTitle} findingBoxes={findingBoxes} selectedFindingId={selectedFindingId} onSelectFinding={onSelectFinding} findings={findings} containerStyle={{ width: '100%', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 10px 32px rgba(0,0,0,0.16)', border: '2px solid #CBD5E1', backgroundColor: '#FAF5EF' }} />
+            </div>
+          )}
+          {resolvedFormat === 'image' && !showCorrectedVersion && !resolvedImageUrl && (
+            <div style={{ width: '420px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div
+                style={{
+                  width: '100%',
+                  minHeight: '260px',
+                  backgroundColor: '#F8FAFC',
+                  borderRadius: '14px',
+                  border: '2px dashed #CBD5E1',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '32px 24px',
+                  textAlign: 'center',
+                  gap: '12px'
+                }}
+              >
+                <div
+                  style={{
+                    width: '52px',
+                    height: '52px',
+                    borderRadius: '50%',
+                    backgroundColor: '#EFF6FF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#2563EB'
+                  }}
+                >
+                  <ImageIcon size={26} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', marginBottom: '4px' }}>
+                    No Creative Image Attached
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748B', maxWidth: '300px', lineHeight: '1.5' }}>
+                    Attach or upload a creative image to perform visual OCR analysis and inspect pinpoint violation markers.
+                  </div>
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#059669', backgroundColor: '#ECFDF5', padding: '4px 12px', borderRadius: '6px', fontWeight: 600 }}>
+                  ✓ Metadata-only evidence audit remains active
+                </div>
+              </div>
+
+              {/* Metadata Copy Preview */}
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Draft Copy / Metadata
+                  </div>
+                  {findings.length > 0 && (
+                    <span className="badge badge-violation" style={{ fontSize: '10px' }}>
+                      {findings.length} findings
+                    </span>
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    color: '#1E293B',
+                    lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap',
+                    backgroundColor: '#FAF5EF',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    maxHeight: '220px',
+                    overflowY: 'auto'
+                  }}
+                >
+                  {rawText || 'No draft copy available for this asset.'}
+                </div>
+              </div>
             </div>
           )}
           {resolvedFormat === 'image' && showCorrectedVersion && <div style={{ width: '420px' }}>{fixedTextCard}</div>}

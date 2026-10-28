@@ -39,6 +39,7 @@ export interface ProductFact {
   approvalStatus: 'Approved' | 'Pending' | 'Deprecated';
   priceHistory: PriceRecord[];
   ingredientsSummary?: string;
+  aliases?: string[];
 }
 
 export interface ApprovedClaim {

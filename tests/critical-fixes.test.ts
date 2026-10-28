@@ -390,4 +390,237 @@ describe('Task 5 — Background Visual Scene Scanning & Warning Status', () => {
   });
 });
 
+describe('Task 6 — Price Extraction, Catalog Matching, and Evidence Audit Engine', () => {
+  const kb = INITIAL_BRAND_KNOWLEDGE_BASE;
+
+  test('extractPricesFromText extracts INR prices in multiple formats without picking up volumes or years', async () => {
+    const { extractPricesFromText } = await import('../src/services/productCatalogService');
+    
+    // Test multiple price variations
+    const text1 = 'Aurelia Vitamin C Glow Serum 30ml - Special Offer: ₹1,299. Valid in 2026. 100% genuine.';
+    const prices1 = extractPricesFromText(text1);
+    assert.equal(prices1.length, 1);
+    assert.equal(prices1[0].value, 1299);
+    assert.equal(prices1[0].rawText, '₹1,299');
+
+    const text2 = 'Only ₹ 1,299 for Aurelia Deep Hydrating Moisturizer 50g (Mfg 2025).';
+    const prices2 = extractPricesFromText(text2);
+    assert.equal(prices2.length, 1);
+    assert.equal(prices2[0].value, 1299);
+
+    const text3 = 'Aurelia Radiant Vitamin C Serum at Rs. 899.';
+    const prices3 = extractPricesFromText(text3);
+    assert.equal(prices3.length, 1);
+    assert.equal(prices3[0].value, 899);
+
+    const text4 = 'Aurelia Soothing Barrier Cleanser 150ml at 599 only.';
+    const prices4 = extractPricesFromText(text4);
+    assert.equal(prices4.length, 1);
+    assert.equal(prices4[0].value, 599);
+  });
+
+  test('matchProductFromCreative matches product via registered alias "Vitamin C Glow Serum" to SKU AUR-VTC-30', async () => {
+    const { matchProductFromCreative } = await import('../src/services/productCatalogService');
+    const creativeText = 'AURELIA SKINCARE - VITAMIN C GLOW SERUM - Discover your daily skincare ritual. Only ₹1,299';
+    
+    const match = matchProductFromCreative(creativeText, kb.products);
+    assert.ok(match.product, 'Should match a product');
+    assert.equal(match.product?.sku, 'AUR-VTC-30');
+    assert.equal(match.product?.currentPrice, 899);
+    assert.equal(match.isEstablished, true);
+    assert.equal(match.confidence, 'HIGH');
+  });
+
+  test('matchProductFromCreative matches explicit SKU AUR-VTC-30 directly', async () => {
+    const { matchProductFromCreative } = await import('../src/services/productCatalogService');
+    const creativeText = 'Special promotional ad';
+    
+    const match = matchProductFromCreative(creativeText, kb.products, {
+      explicitSku: 'AUR-VTC-30'
+    });
+    assert.ok(match.product);
+    assert.equal(match.product?.sku, 'AUR-VTC-30');
+    assert.equal(match.isEstablished, true);
+    assert.equal(match.confidence, 'HIGH');
+  });
+
+  test('matchProductFromCreative flags uncertain / ambiguous product match as isEstablished = false', async () => {
+    const { matchProductFromCreative } = await import('../src/services/productCatalogService');
+    // Ad mentions general "Serum" but no SKU, no specific brand alias
+    const creativeText = 'Generic Anti-Aging Serum 30ml - Only ₹1,299';
+    
+    const match = matchProductFromCreative(creativeText, kb.products);
+    // Should NOT be established as a definite product match
+    assert.equal(match.isEstablished, false);
+  });
+
+  test('runContentAudit flags price mismatch (₹1,299 creative vs ₹899 catalog for Vitamin C Glow Serum)', async () => {
+    const { runContentAudit } = await import('../src/services/auditorEngine');
+    const adText = `AURELIA SKINCARE
+VITAMIN C GLOW SERUM
+Discover your daily skincare ritual.
+BRIGHTENS Dull Skin | EVENS TONE Reduces Dark Spots | HYDRATES For Healthy Glow
+Only ₹1,299 >
+Dermatologically Tested | Paraben Free | Cruelty Free
+*Based on a clinical trial of 30 women over 4 weeks.`;
+
+    const report = await runContentAudit(
+      {
+        draftText: adText,
+        assetTitle: 'Vitamin C Glow Serum Advertisement',
+        assetType: 'image',
+        extractedVia: 'Tesseract OCR'
+      },
+      kb
+    );
+
+    const priceFinding = report.findings.find(f => f.ruleType === 'Price');
+    assert.ok(priceFinding, 'Must generate a Price finding for mismatch');
+    assert.equal(priceFinding?.severity, 'HIGH');
+    assert.equal(priceFinding?.priceDetails?.creativePrice, 1299);
+    assert.equal(priceFinding?.priceDetails?.approvedPrice, 899);
+    assert.equal(priceFinding?.priceDetails?.matchedProductSku, 'AUR-VTC-30');
+    assert.equal(priceFinding?.priceDetails?.matchedProductName, 'Aurelia Radiant Vitamin C Serum');
+    assert.ok(priceFinding?.suggestedFix.includes('899'), 'Suggested fix should recommend catalog price ₹899');
+    assert.equal(report.approvalStatus, 'Blocked', 'Overall status should be Blocked due to price mismatch');
+  });
+
+  test('runContentAudit does NOT flag price when creative price matches approved catalog (₹899)', async () => {
+    const { runContentAudit } = await import('../src/services/auditorEngine');
+    const adText = `AURELIA SKINCARE
+VITAMIN C GLOW SERUM
+Discover your daily skincare ritual.
+Only ₹899
+*Based on a clinical trial of 30 women over 4 weeks.`;
+
+    const report = await runContentAudit(
+      {
+        draftText: adText,
+        assetTitle: 'Vitamin C Serum Correct Price',
+        assetType: 'image',
+        extractedVia: 'Tesseract OCR'
+      },
+      kb
+    );
+
+    const priceMismatch = report.findings.find(f =>
+      f.ruleType === 'Price' && f.priceDetails?.reviewStatus === 'CONFIRMED_MISMATCH'
+    );
+    assert.equal(priceMismatch, undefined, 'Should NOT flag when price matches approved catalog');
+  });
+
+  test('runContentAudit produces unverified price report instead of silent approval when price is missing on commercial creative', async () => {
+    const { runContentAudit } = await import('../src/services/auditorEngine');
+    const adText = `AURELIA SKINCARE
+VITAMIN C GLOW SERUM
+Discover your daily skincare ritual.
+*Based on a clinical trial of 30 women over 4 weeks.`;
+
+    const report = await runContentAudit(
+      {
+        draftText: adText,
+        assetTitle: 'Vitamin C Serum Missing Price',
+        assetType: 'image',
+        extractedVia: 'Tesseract OCR'
+      },
+      kb
+    );
+
+    const unverifiedFinding = report.findings.find(f =>
+      f.ruleType === 'Price' && f.priceDetails?.reviewStatus === 'UNVERIFIED_PRICE'
+    );
+    assert.ok(unverifiedFinding, 'Should report unverified price finding');
+    assert.equal(unverifiedFinding?.priceDetails?.reviewStatus, 'UNVERIFIED_PRICE');
+    assert.equal(report.approvalStatus, 'Needs Review', 'Should be Needs Review when price is unverified');
+  });
+
+  test('re-audit preserves reviewer decision and note across multiple audit runs without duplicating findings', async () => {
+    const { runContentAudit } = await import('../src/services/auditorEngine');
+    const adText = `AURELIA SKINCARE
+VITAMIN C GLOW SERUM
+Discover your daily skincare ritual.
+Only ₹1,299
+*Based on a clinical trial of 30 women over 4 weeks.`;
+
+    // First audit
+    const initialReport = await runContentAudit(
+      {
+        draftText: adText,
+        assetTitle: 'Vitamin C Glow Serum Ad',
+        assetType: 'image',
+        extractedVia: 'Tesseract OCR'
+      },
+      kb
+    );
+
+    const priceFinding = initialReport.findings.find(f => f.ruleType === 'Price')!;
+    assert.ok(priceFinding, 'Finding must exist');
+
+    // Simulate reviewer recording an approved exception
+    const findingsWithDecision: AuditFinding[] = initialReport.findings.map(f => {
+      if (f.id === priceFinding.id) {
+        return {
+          ...f,
+          decision: 'REJECTED' as const,
+          decisionNote: 'Special festival gift packaging edition with ₹1,299 MSRP authorized by VP Marketing',
+          decisionBy: 'Meera (Compliance Reviewer)',
+          decisionTimestamp: new Date().toISOString()
+        };
+      }
+      return f;
+    });
+
+    // Run audit second time with existingFindings passed
+    const reauditedReport = await runContentAudit(
+      {
+        draftText: adText,
+        assetTitle: 'Vitamin C Glow Serum Ad',
+        assetType: 'image',
+        extractedVia: 'Tesseract OCR',
+        existingFindings: findingsWithDecision
+      },
+      kb
+    );
+
+    // Verify findings are NOT duplicated
+    const priceFindings = reauditedReport.findings.filter(f => f.ruleType === 'Price');
+    assert.equal(priceFindings.length, 1, 'Must not duplicate findings on re-audit');
+
+    // Verify decision and notes were preserved
+    const preservedFinding = priceFindings[0];
+    assert.equal(preservedFinding.decision, 'REJECTED');
+    assert.equal(preservedFinding.decisionNote, 'Special festival gift packaging edition with ₹1,299 MSRP authorized by VP Marketing');
+    assert.equal(preservedFinding.decisionBy, 'Meera (Compliance Reviewer)');
+  });
+
+  test('calculateAssetAuditStatus returns Blocked, Needs Review, or Approved correctly', async () => {
+    const { calculateAssetAuditStatus } = await import('../src/services/productCatalogService');
+
+    // Clean findings
+    assert.equal(calculateAssetAuditStatus([]), 'Approved');
+
+    // Resolved finding
+    const resolvedFinding: AuditFinding = {
+      ...createMockFinding('HIGH', 'f1'),
+      decision: 'ACCEPTED'
+    };
+    assert.equal(calculateAssetAuditStatus([resolvedFinding]), 'Approved');
+
+    // High severity unresolved finding
+    const highFinding: AuditFinding = {
+      ...createMockFinding('HIGH', 'f2'),
+      decision: 'PENDING'
+    };
+    assert.equal(calculateAssetAuditStatus([highFinding]), 'Blocked');
+
+    // Unverified finding
+    const unverifiedFinding: AuditFinding = {
+      ...createMockFinding('MEDIUM', 'f3'),
+      category: 'Price could not be verified',
+      decision: 'PENDING'
+    };
+    assert.equal(calculateAssetAuditStatus([unverifiedFinding]), 'Needs Review');
+  });
+});
+
 

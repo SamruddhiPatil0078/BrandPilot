@@ -135,6 +135,7 @@ export const ProductFactsManager: React.FC<ProductFactsManagerProps> = ({
       validUntil: '2027-12-31',
       approvalStatus: 'Approved',
       ingredientsSummary: newProdIngredients,
+      aliases: [newProdName.trim()],
       priceHistory: [
         {
           id: `ph-${Date.now()}`,

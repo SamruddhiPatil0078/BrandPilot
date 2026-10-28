@@ -6,6 +6,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { CampaignAsset } from '../../types/campaign';
+import { isValidImageUrl } from '../../services/imageStorage';
 
 interface AssetCardsGridProps {
   assets: CampaignAsset[];
@@ -30,8 +31,9 @@ export const AssetCardsGrid: React.FC<AssetCardsGridProps> = ({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
         {assets.map(asset => {
-          const hasConflicts = asset.status === 'Conflicts Detected';
-          const needsRecheck = asset.status === 'Needs Recheck';
+          const hasConflicts = asset.status === 'Conflicts Detected' || asset.auditStatus === 'Blocked';
+          const needsRecheck = asset.status === 'Needs Recheck' || asset.auditStatus === 'Needs Review';
+          const hasImage = isValidImageUrl(asset.previewUrl);
 
           return (
             <div
@@ -47,6 +49,31 @@ export const AssetCardsGrid: React.FC<AssetCardsGridProps> = ({
               }}
             >
               <div>
+                {/* Optional Creative Image Thumbnail */}
+                {hasImage && (
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '140px',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      marginBottom: '10px',
+                      border: '1px solid #CBD5E1',
+                      backgroundColor: '#FAF5EF'
+                    }}
+                  >
+                    <img
+                      src={asset.previewUrl}
+                      alt={asset.title}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                   <div>
@@ -70,7 +97,7 @@ export const AssetCardsGrid: React.FC<AssetCardsGridProps> = ({
                     {hasConflicts ? (
                       <>
                         <AlertTriangle size={11} />
-                        <span>{asset.conflictCount} Conflicts</span>
+                        <span>{asset.conflictCount > 0 ? `${asset.conflictCount} Conflicts` : 'Blocked'}</span>
                       </>
                     ) : needsRecheck ? (
                       <>
@@ -104,7 +131,7 @@ export const AssetCardsGrid: React.FC<AssetCardsGridProps> = ({
                     <span style={{ color: '#64748B' }}>Extracted Price:</span>
                     <strong
                       style={{
-                        color: asset.extractedPriceStr?.includes('1,099') ? '#DC2626' : '#00473E'
+                        color: hasConflicts ? '#DC2626' : '#00473E'
                       }}
                     >
                       {asset.extractedPriceStr || 'None'}
@@ -124,6 +151,24 @@ export const AssetCardsGrid: React.FC<AssetCardsGridProps> = ({
                       {asset.extractedLogoVersion || 'Unknown'}
                     </span>
                   </div>
+
+                  {asset.auditStatus && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#64748B' }}>Audit Status:</span>
+                      <span
+                        className={`badge ${
+                          asset.auditStatus === 'Blocked'
+                            ? 'badge-violation'
+                            : asset.auditStatus === 'Needs Review'
+                            ? 'badge-unverified'
+                            : 'badge-success'
+                        }`}
+                        style={{ fontSize: '10px' }}
+                      >
+                        {asset.auditStatus}
+                      </span>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#64748B' }}>Offer / Promo:</span>

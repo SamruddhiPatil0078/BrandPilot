@@ -39,7 +39,7 @@ BrandPilot Intelligence is an enterprise brand safety and governance platform th
 - **Frontend**: React 19, TypeScript, Vite
 - **Styling**: Modern Vanilla CSS Design System (Glassmorphic cards, curved sections, high-contrast badges)
 - **Icons**: Lucide React
-- **AI Inference**: Groq Cloud SDK (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`)
+- **AI Inference**: Groq Cloud SDK (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`)
 - **OCR**: Tesseract.js with canvas luminance normalization
 
 ---

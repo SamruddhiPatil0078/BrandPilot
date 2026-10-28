@@ -8,6 +8,7 @@ import { HumanDecisionModal } from './HumanDecisionModal';
 import { SendBackEmailModal } from './SendBackEmailModal';
 import { GroqReportModal } from './GroqReportModal';
 import { runContentAudit, calculateComplianceScore } from '../../services/auditorEngine';
+import { calculateAssetAuditStatus } from '../../services/productCatalogService';
 import { performOcr, OcrResult } from '../../services/ocrService';
 import { extractTextFromPdf } from '../../services/pdfService';
 import { cleanOcrTextWithGroq } from '../../services/groqService';
@@ -18,6 +19,7 @@ interface ContentAuditorViewProps {
   kb: BrandKnowledgeBase;
   incomingAsset?: BatchAsset | null;
   onClearIncomingAsset?: () => void;
+  onSaveCampaignAssetAudit?: (campaignAssetId: string, report: AuditReport) => void;
 }
 
 /**
@@ -144,7 +146,8 @@ function fileToDataUrl(file: File): Promise<string> {
 export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
   kb,
   incomingAsset,
-  onClearIncomingAsset
+  onClearIncomingAsset,
+  onSaveCampaignAssetAudit
 }) => {
   // Current draft asset
   const [selectedAsset, setSelectedAsset] = useState<BatchAsset>(ASSET_BATCHES[0].assets[0]);
@@ -181,6 +184,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
     const text = incomingAsset.draftText || '';
     setDraftText(text);
     setOriginalDraftText(text);
+    setCurrentOcrResult(incomingAsset.ocrResult || null);
     setAuditReport(null);
     setSelectedFindingId(null);
     setAppliedFixIds(new Set());
@@ -191,6 +195,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
   if (selectedAsset.id !== prevAssetId || kb.activeVersion !== prevKbVersion) {
     setPrevAssetId(selectedAsset.id);
     setPrevKbVersion(kb.activeVersion);
+    setCurrentOcrResult(selectedAsset.ocrResult || null);
     setAuditReport(null);
     setSelectedFindingId(null);
     setAppliedFixIds(new Set());
@@ -267,7 +272,10 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
           backgroundDescription: selectedAsset.backgroundDescription || '',
           ocrWords: activeOcrResult?.words,
           ocrImageWidth: activeOcrResult?.imageWidth,
-          ocrImageHeight: activeOcrResult?.imageHeight
+          ocrImageHeight: activeOcrResult?.imageHeight,
+          explicitProductSku: selectedAsset.productSku,
+          explicitProductId: selectedAsset.productId,
+          existingFindings: auditReport?.findings
         },
         kb
       );
@@ -275,6 +283,11 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
       setAuditReport(report);
       if (report.findings.length > 0) {
         setSelectedFindingId(report.findings[0].id);
+      }
+
+      if (onSaveCampaignAssetAudit && (selectedAsset.campaignAssetId || selectedAsset.id.startsWith('campaign-'))) {
+        const campaignAssetId = selectedAsset.campaignAssetId || selectedAsset.id.replace('campaign-', '');
+        onSaveCampaignAssetAudit(campaignAssetId, report);
       }
     } catch (err) {
       console.error('Audit execution error:', err);
@@ -298,7 +311,7 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
   const addToUploadHistory = async (file: File, draftText: string, _previewUrl?: string) => {
     // Generate a thumbnail data URL for history persistence
     const thumbnailDataUrl = await fileToDataUrl(file);
-    
+
     const entry: UploadHistoryEntry = {
       id: `upload-${Date.now()}`,
       name: file.name,
@@ -463,19 +476,28 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
     });
 
     const resolvedCount = updatedFindings.filter(f => f.decision === 'ACCEPTED').length;
+    const approvalStatus = calculateAssetAuditStatus(updatedFindings);
 
     // Preserves honest evidence-based scoring: score is derived strictly from findings
-    setAuditReport({
+    const updatedReport: AuditReport = {
       ...auditReport,
-      overallScore: calculateComplianceScore(auditReport.findings),
+      overallScore: calculateComplianceScore(updatedFindings),
       findings: updatedFindings,
+      approvalStatus,
       summary: {
         ...auditReport.summary,
         resolvedCount
       }
-    });
+    };
 
-    setToastMessage(`Recorded human decision: ${decision} for Finding #${finding.pinNumber}.`);
+    setAuditReport(updatedReport);
+
+    if (onSaveCampaignAssetAudit && (selectedAsset.campaignAssetId || selectedAsset.id.startsWith('campaign-'))) {
+      const campaignAssetId = selectedAsset.campaignAssetId || selectedAsset.id.replace('campaign-', '');
+      onSaveCampaignAssetAudit(campaignAssetId, updatedReport);
+    }
+
+    setToastMessage(`Recorded human decision: ${decision} for Finding #${finding.pinNumber}. Status: ${approvalStatus}`);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -529,11 +551,20 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
           backgroundDescription: selectedAsset.backgroundDescription || '',
           ocrWords: activeOcr?.words,
           ocrImageWidth: activeOcr?.imageWidth,
-          ocrImageHeight: activeOcr?.imageHeight
+          ocrImageHeight: activeOcr?.imageHeight,
+          explicitProductSku: selectedAsset.productSku,
+          explicitProductId: selectedAsset.productId,
+          existingFindings: auditReport.findings
         },
         kb
       );
       setAuditReport(updatedReport);
+
+      if (onSaveCampaignAssetAudit && (selectedAsset.campaignAssetId || selectedAsset.id.startsWith('campaign-'))) {
+        const campaignAssetId = selectedAsset.campaignAssetId || selectedAsset.id.replace('campaign-', '');
+        onSaveCampaignAssetAudit(campaignAssetId, updatedReport);
+      }
+
       setToastMessage(`✅ Fix applied! "${finding.flaggedText}" → "${finding.suggestedFix}". New compliance: ${updatedReport.overallScore}%.`);
     } catch (err) {
       console.error('Audit rerun failed:', err);
@@ -603,11 +634,20 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
           backgroundDescription: selectedAsset.backgroundDescription || '',
           ocrWords: activeOcr?.words,
           ocrImageWidth: activeOcr?.imageWidth,
-          ocrImageHeight: activeOcr?.imageHeight
+          ocrImageHeight: activeOcr?.imageHeight,
+          explicitProductSku: selectedAsset.productSku,
+          explicitProductId: selectedAsset.productId,
+          existingFindings: auditReport.findings
         },
         kb
       );
       setAuditReport(updatedReport);
+
+      if (onSaveCampaignAssetAudit && (selectedAsset.campaignAssetId || selectedAsset.id.startsWith('campaign-'))) {
+        const campaignAssetId = selectedAsset.campaignAssetId || selectedAsset.id.replace('campaign-', '');
+        onSaveCampaignAssetAudit(campaignAssetId, updatedReport);
+      }
+
       setToastMessage(
         `✅ Applied ${appliedCount} text fix${appliedCount > 1 ? 'es' : ''}${skippedCount > 0 ? ` (${skippedCount} require manual editing/artwork update)` : ''}. New score: ${updatedReport.overallScore}%.`
       );

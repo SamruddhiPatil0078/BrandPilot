@@ -35,6 +35,11 @@ export interface BatchAsset {
   instagramAccount?: string;
   /** Background scene visual description for brand governance scanning */
   backgroundDescription?: string;
+  /** Linked product SKU and ID for catalog validation */
+  productSku?: string;
+  productId?: string;
+  /** Linked campaign asset ID when arriving from Campaign Consistency */
+  campaignAssetId?: string;
 }
 
 // Persisted upload history entry
@@ -480,6 +485,41 @@ export const UploadPane: React.FC<UploadPaneProps> = ({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Active Campaign Asset Card (when loaded from Campaign Consistency) */}
+      {selectedAsset.id.startsWith('campaign-') && !customInputMode && !showHistory && (
+        <div
+          style={{
+            padding: '12px 14px',
+            borderRadius: '10px',
+            border: '2px solid #2563EB',
+            backgroundColor: '#EFF6FF',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="badge badge-neutral" style={{ fontSize: '10px', backgroundColor: '#DBEAFE', color: '#1E40AF' }}>
+              Active Campaign Asset
+            </span>
+            <span className="badge badge-success" style={{ fontSize: '10px' }}>
+              {selectedAsset.channel}
+            </span>
+          </div>
+          <div style={{ fontWeight: 800, fontSize: '13.5px', color: '#0F172A' }}>
+            {selectedAsset.name}
+          </div>
+          <div style={{ fontSize: '11.5px', color: '#475569' }}>
+            {selectedAsset.description}
+          </div>
+          {selectedAsset.productSku && (
+            <div style={{ fontSize: '11px', color: '#1E40AF', fontWeight: 600 }}>
+              Linked Catalog SKU: {selectedAsset.productSku}
+            </div>
+          )}
         </div>
       )}
 

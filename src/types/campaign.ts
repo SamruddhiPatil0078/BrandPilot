@@ -1,3 +1,5 @@
+import { AuditReport, AuditFinding } from './audit';
+
 export type AssetChannel = 'Instagram' | 'Website' | 'Print Brochure' | 'Email' | 'Billboard' | 'LinkedIn' | 'Facebook' | 'SMS' | 'Mobile App';
 
 export interface CampaignAsset {
@@ -8,6 +10,8 @@ export interface CampaignAsset {
   teamName?: string; // e.g. "Creative Pulse Agency", "Metro Print Studio", "Growth CRM"
   previewUrl: string;
   uploadedAt: string;
+  productId?: string;
+  productSku?: string;
   extractedPrice?: number;
   extractedPriceStr?: string;
   extractedOffer?: string;
@@ -22,6 +26,9 @@ export interface CampaignAsset {
   fullText: string;
   status: 'In Sync' | 'Conflicts Detected' | 'Needs Recheck';
   conflictCount: number;
+  auditStatus?: 'Approved' | 'Needs Review' | 'Blocked';
+  lastAuditReport?: AuditReport;
+  auditFindings?: AuditFinding[];
 }
 
 export type ConflictType =

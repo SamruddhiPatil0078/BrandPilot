@@ -31,13 +31,18 @@ export const GroqReportModal: React.FC<GroqReportModalProps> = ({ report, kb, on
   const generateReport = useCallback(async () => {
     setLoading(true);
 
+    const priceFinding = report.findings.find(f => f.ruleType === 'Price');
+    const claimFindings = report.findings.filter(f => f.ruleType === 'Claim');
+    const catalogSummary = kb.products.map(p => `- ${p.productName} (SKU: ${p.sku}): ₹${p.currentPrice.toLocaleString('en-IN')}`).join('\n');
+
     const prompt = `You are the Lead Brand Governance Director generating a formal Executive Compliance Report for Aurelia Skincare.
 Audit Target: "${report.assetTitle}"
 Extracted Content:
 "${report.rawText}"
 
 Active Brand Knowledge Base:
-- Active Catalog Price: ₹${kb.products[0]?.currentPrice || 1299}
+- Approved Catalog Products:
+${catalogSummary}
 - Active Primary Slogan: "${kb.tone.primaryTagline}"
 - Approved Tone: ${kb.tone.approvedToneKeywords.join(', ')}
 - Prohibited Tone: ${kb.tone.bannedToneKeywords.join(', ')}
@@ -59,6 +64,12 @@ Please generate a professional, structured executive compliance audit report in 
       setReportContent(result);
     } catch (err) {
       console.warn('Groq report error, using structured fallback:', err);
+      const isClean = report.findings.length === 0;
+      const priceDetail = priceFinding?.priceDetails;
+      const displayedPrice = priceDetail?.creativePriceFormatted || priceFinding?.flaggedText || 'displayed price';
+      const catalogPrice = priceDetail?.approvedPriceFormatted || `₹${kb.products[0]?.currentPrice || 1299}`;
+      const matchedProdName = priceDetail?.matchedProductName || kb.products[0]?.productName || 'Aurelia Product';
+
       setReportContent(`# Aurelia Skincare — Executive Compliance Audit
 **Audit Target:** *${report.assetTitle}*
 **Date of Review:** ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -70,22 +81,21 @@ Please generate a professional, structured executive compliance audit report in 
 
 | Item | Status | Comments |
 |------|--------|----------|
-| Overall Content | **Conditional Approval** | High-risk violations detected (unsubstantiated claims, price discrepancy). Revisions required prior to distribution. |
-| Immediate Publish-Ready? | ❌ No | Required edits must be applied to creative copy before final publish. |
+| Overall Content | **${isClean ? 'Approved' : 'Conditional Approval'}** | ${isClean ? 'All brand compliance checks passed.' : `${report.findings.length} findings require resolution prior to distribution.`} |
+| Immediate Publish-Ready? | ${isClean ? '✅ Yes' : '❌ No'} | ${isClean ? 'Ready for distribution.' : 'Required edits must be applied to creative copy before final publish.'} |
 | Re-submission Deadline | **≤ 5 business days** | Target clearance within 5 days to mitigate exposure under ASCI 2024 & CCPA Sec 4. |
 
 ## 2. Regulatory Risk Assessment (ASCI & CCPA)
-- **Price Discrepancy:** Displays outdated price ₹1,099 while active catalog price is ₹1,299. Note: ₹1,099 was valid through 30 Sept 2026. Publishing expired promotional pricing creates legal exposure under CCPA Section 4.
-- **Unverified Superlative:** The phrase "India's most loved moisturizer" lacks third-party audited consumer market share proof required by ASCI Rule 1.4.
-- **Absolute Timeframe Guarantee:** "Results guaranteed in 7 days" violates CCPA misleading cosmetic advertisement provisions.
+${priceFinding ? `- **Price Discrepancy:** Displays creative price ${displayedPrice} while approved catalog price for ${matchedProdName} is ${catalogPrice}. Publishing mismatched pricing creates legal exposure under CCPA Section 4.` : '- **Pricing:** Consistent with approved catalog.'}
+${claimFindings.map(cf => `- **${cf.title}:** ${cf.explanation} (${cf.approvedSource.title}).`).join('\n') || '- **Claims:** Substantiated under brand guidelines.'}
 
 ## 3. Deep Root-Cause Analysis
-- **Legacy Promo Asset Usage:** The creative was produced using assets from the Q3 Monsoon Promotion that expired on 30 Sept 2026.
-- **Unsubstantiated Copywriting:** Agency copywriters inserted hyperbolic superiority claims ("most loved") without referencing the clinical substantiation file.
+- **Catalog Synchronization:** Ensure production agencies pull real-time pricing from Master Brand Catalog v${kb.activeVersion}.
+- **Copy Review:** Confirm all superlatives and clinical claims cite verified medical evidence on file.
 
 ## 4. Actionable Copy Rewrites for Marketing Team
 Replace draft copy with approved on-brand messaging:
-> "Aurelia Skincare — Discover your daily skincare ritual. Clinically verified 72-hour deep barrier hydration. Available now at ₹1,299. *Based on clinical study of 30 women over 4 weeks."`);
+${report.findings.filter(f => f.suggestedFix).map(f => `> Replace "${f.flaggedText}" → **"${f.suggestedFix}"**`).join('\n\n') || `> "${report.rawText}"`}`);
     } finally {
       setLoading(false);
     }
