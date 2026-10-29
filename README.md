@@ -33,7 +33,7 @@
 
 ---
 
-## 🚨 The Problem Statement
+## The Problem Statement
 
 Content today is produced at unprecedented scale across decentralized hands: in-house marketers, external creative agencies, freelancers, and generative AI writing tools. Without unified governance, dangerous discrepancies quietly slip into production:
 - **Financial & Price Drift:** An Instagram graphic advertises ₹1,099 while the official catalog and website list ₹1,299.
@@ -45,7 +45,7 @@ Content today is produced at unprecedented scale across decentralized hands: in-
 
 ---
 
-## 💡 The Solution: Four Modules
+##  The Solution: Four Modules
 
 BrandPilot Intelligence bridges the gap between approved company policy and what actually gets published through an integrated 4-module engine:
 
@@ -86,7 +86,7 @@ BrandPilot Intelligence bridges the gap between approved company policy and what
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```mermaid
 flowchart TD
@@ -193,7 +193,7 @@ flowchart TD
 
 ---
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 | Layer | Technologies Used |
 | :--- | :--- |
@@ -206,7 +206,7 @@ flowchart TD
 
 ---
 
-## 🚀 Getting Started & Local Setup
+##  Getting Started & Local Setup
 
 ### Prerequisites
 - **Node.js**: `v20.x` or `v22.x`
@@ -252,7 +252,7 @@ Visit `http://localhost:5173` in your browser. The top navigation bar badge shou
 
 ---
 
-## 🧪 Testing & Quality Assurance
+##  Testing & Quality Assurance
 
 Run the comprehensive deterministic test suite:
 ```bash
@@ -268,7 +268,7 @@ npm run build
 
 ---
 
-## 🔍 Honest Limitations & Roadmap
+##  Honest Limitations & Roadmap
 
 In the spirit of honest engineering and hackathon transparency, we acknowledge what is currently in active development:
 
