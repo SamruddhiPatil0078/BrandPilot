@@ -584,3 +584,4 @@ export const SideBySideComparator: React.FC<SideBySideComparatorProps> = ({
     </div>
   );
 };
+
