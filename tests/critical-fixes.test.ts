@@ -1,8 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateComplianceScore, findPhraseBounds } from '../src/services/auditorEngine';
-import { scanBackgroundScene, auditCampaignConsistency } from '../src/services/campaignEngine';
-import { INITIAL_BRAND_KNOWLEDGE_BASE, INITIAL_CAMPAIGN } from '../src/services/storageService';
+import { scanBackgroundScene, auditCampaignConsistency, autoAlignCampaignAssets } from '../src/services/campaignEngine';
+import { INITIAL_BRAND_KNOWLEDGE_BASE, INITIAL_CAMPAIGN, DIWALI_CAMPAIGN, BLOOD_DONATION_CAMPAIGN } from '../src/services/storageService';
 import { AuditFinding } from '../src/types/audit';
 
 function createMockFinding(severity: 'HIGH' | 'MEDIUM' | 'LOW', id = 'f1'): AuditFinding {
@@ -623,4 +623,36 @@ Only ₹1,299
   });
 });
 
+describe('Task 7 — Campaign Multi-Variable Consistency & Preset Campaigns', () => {
+  const kb = INITIAL_BRAND_KNOWLEDGE_BASE;
 
+  test('auditCampaignConsistency flags Discount Percentage and Promo Code conflicts in Diwali Campaign', () => {
+    const { conflicts } = auditCampaignConsistency(DIWALI_CAMPAIGN, kb);
+    const discountConflict = conflicts.find(c => c.type === 'Discount Percentage Mismatch');
+    const promoConflict = conflicts.find(c => c.type === 'Promo Code Inconsistency');
+
+    assert.ok(discountConflict, 'Should identify conflicting discount percentages (35% vs 25% vs 20%)');
+    assert.equal(discountConflict.severity, 'HIGH');
+    assert.ok(promoConflict, 'Should identify conflicting promo codes (DIWALI35 vs DIWALI25 vs DIWALI20)');
+    assert.equal(promoConflict.severity, 'HIGH');
+  });
+
+  test('auditCampaignConsistency flags Commercial Policy Violation in CSR Blood Donation Campaign', () => {
+    const { conflicts } = auditCampaignConsistency(BLOOD_DONATION_CAMPAIGN, kb);
+    const commercialConflict = conflicts.find(c => c.type === 'Commercial / Policy Violation');
+    const dateConflict = conflicts.find(c => c.type === 'Date Expiry Conflict');
+
+    assert.ok(commercialConflict, 'Should catch prohibited ₹500 gift vouchers for voluntary blood donation');
+    assert.equal(commercialConflict.severity, 'HIGH');
+    assert.ok(dateConflict, 'Should catch event date discrepancy (12 Nov vs 14 Nov)');
+  });
+
+  test('autoAlignCampaignAssets harmonizes multi-channel conflicts across campaign presets', () => {
+    const { updatedCampaign, alignedCount } = autoAlignCampaignAssets(DIWALI_CAMPAIGN, kb);
+    assert.ok(alignedCount > 0, 'Should align multiple divergent assets');
+
+    const reAudited = auditCampaignConsistency(updatedCampaign, kb);
+    const remainingHigh = reAudited.conflicts.filter(c => c.severity === 'HIGH');
+    assert.equal(remainingHigh.length, 0, 'All high severity commercial discrepancies must be resolved');
+  });
+});

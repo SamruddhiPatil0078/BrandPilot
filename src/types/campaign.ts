@@ -1,6 +1,16 @@
 import { AuditReport, AuditFinding } from './audit';
 
-export type AssetChannel = 'Instagram' | 'Website' | 'Print Brochure' | 'Email' | 'Billboard' | 'LinkedIn' | 'Facebook' | 'SMS' | 'Mobile App';
+export type AssetChannel =
+  | 'Instagram'
+  | 'Website'
+  | 'Print Brochure'
+  | 'Email'
+  | 'Billboard'
+  | 'LinkedIn'
+  | 'Facebook'
+  | 'SMS'
+  | 'WhatsApp'
+  | 'Mobile App';
 
 export interface CampaignAsset {
   id: string;
@@ -14,6 +24,10 @@ export interface CampaignAsset {
   productSku?: string;
   extractedPrice?: number;
   extractedPriceStr?: string;
+  extractedDiscountPercent?: number; // e.g. 20, 25, 35
+  extractedPromoCode?: string; // e.g. "DIWALI25", "WINTERFEST", "AUTUMN20"
+  extractedCta?: string; // e.g. "Shop Festive Glow", "Register as Donor", "Claim 25% Off"
+  extractedVenue?: string; // e.g. "City Campus Clinic"
   extractedOffer?: string;
   extractedDate?: string;
   extractedTagline?: string;
@@ -33,12 +47,15 @@ export interface CampaignAsset {
 
 export type ConflictType =
   | 'Price Discrepancy'
-  | 'Offer Mismatch'
+  | 'Discount Percentage Mismatch'
+  | 'Promo Code Inconsistency'
   | 'Date Expiry Conflict'
   | 'Tagline Inconsistency'
+  | 'CTA Divergence'
   | 'Outdated Logo'
   | 'Missing Disclaimer'
   | 'Tone Divergence'
+  | 'Commercial / Policy Violation'
   | 'Background Scene Warning';
 
 export interface CampaignConflict {
@@ -71,14 +88,30 @@ export interface TeamCampaignBatch {
   faultCount: number;
 }
 
+export type CampaignCategory =
+  | 'Festive'
+  | 'CSR & Public Health'
+  | 'Winter / Seasonal'
+  | 'Core Commercial';
+
 export interface Campaign {
   id: string;
   name: string;
   code: string;
+  category?: CampaignCategory;
+  themeColor?: string;
   status: 'Active' | 'Under Review' | 'Flagged' | 'Approved';
   targetAudience: string;
   startDate: string;
   endDate: string;
+  campaignGoal?: string;
+  // Approved master campaign benchmark targets
+  approvedDiscountPercent?: number;
+  approvedPromoCode?: string;
+  approvedCta?: string;
+  approvedVenue?: string;
+  approvedDate?: string;
+  approvedPrice?: number;
   assets: CampaignAsset[];
   teamBatches?: TeamCampaignBatch[];
   conflicts: CampaignConflict[];

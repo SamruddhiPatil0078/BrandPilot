@@ -14,10 +14,41 @@ export function matchesRestrictedKeyword(text: string, keyword: string): boolean
   return regex.test(text);
 }
 
+export function extractDiscountPercent(asset: CampaignAsset): number | undefined {
+  if (asset.extractedDiscountPercent !== undefined && asset.extractedDiscountPercent > 0) {
+    return asset.extractedDiscountPercent;
+  }
+  const match = asset.fullText.match(/(\d{1,2})\s*%\s*(?:off|discount)\b/i);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  return undefined;
+}
+
+export function extractPromoCode(asset: CampaignAsset): string | undefined {
+  if (asset.extractedPromoCode) {
+    return asset.extractedPromoCode.trim().toUpperCase();
+  }
+  const match = asset.fullText.match(/\bcode\s*:?\s*([A-Z0-9_-]{4,15})\b/i);
+  if (match) {
+    return match[1].toUpperCase();
+  }
+  return undefined;
+}
+
+export function isCsrCampaign(campaign: Campaign): boolean {
+  return (
+    campaign.category === 'CSR & Public Health' ||
+    /blood\s*donation|wellness\s*drive|csr/i.test(campaign.name) ||
+    /blood\s*donation/i.test(campaign.code)
+  );
+}
+
 /**
  * Campaign Consistency Engine
  * Treats all multi-channel assets in a campaign as a single cohesive set
- * and catches cross-asset discrepancies in prices, offers, dates, logos, and disclaimers.
+ * and catches cross-asset discrepancies in prices, offers, dates, logos, disclaimers,
+ * promotional discount percentages, promo codes, and campaign-specific policies.
  */
 export function auditCampaignConsistency(
   campaign: Campaign,
@@ -40,14 +71,15 @@ export function auditCampaignConsistency(
         }
       );
 
+      const targetPrice = campaign.approvedPrice ?? match.product?.currentPrice ?? 1299;
       if (match.isEstablished && match.product) {
-        if (asset.extractedPrice !== match.product.currentPrice) {
+        if (asset.extractedPrice !== targetPrice) {
           conflicts.push({
             id: `conf-catalog-price-${asset.id}`,
             type: 'Price Discrepancy',
             title: `Price Discrepancy for ${asset.title} (${match.product.sku})`,
             severity: 'HIGH',
-            description: `${asset.title} (${asset.channel}) displays price ${asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)}, which conflicts with the approved catalog price ${formatPriceInr(match.product.currentPrice)} for ${match.product.productName} (SKU: ${match.product.sku}).`,
+            description: `${asset.title} (${asset.channel}) displays price ${asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)}, which conflicts with the approved campaign price ${formatPriceInr(targetPrice)} for ${match.product.productName} (SKU: ${match.product.sku}).`,
             involvedAssets: [{
               assetId: asset.id,
               assetTitle: asset.title,
@@ -57,19 +89,19 @@ export function auditCampaignConsistency(
             }],
             approvedTruth: {
               rule: `Approved Price for ${match.product.productName} (${match.product.sku})`,
-              validValue: `${formatPriceInr(match.product.currentPrice)} (Standard Catalog ${kb.activeVersion})`,
-              sourceDocument: `Product Pricing Catalog ${kb.activeVersion}`
+              validValue: `${formatPriceInr(targetPrice)} (${campaign.name})`,
+              sourceDocument: `${campaign.name} Approved Pricing Standard`
             },
-            suggestedAlignment: `Update ${asset.title} price copy from ${asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)} to ${formatPriceInr(match.product.currentPrice)}.`
+            suggestedAlignment: `Update ${asset.title} price copy from ${asset.extractedPriceStr || formatPriceInr(asset.extractedPrice)} to ${formatPriceInr(targetPrice)}.`
           });
           conflictingCatalogAssets.push({
             asset,
-            approvedPrice: match.product.currentPrice,
+            approvedPrice: targetPrice,
             sku: match.product.sku,
             prodName: match.product.productName
           });
         }
-      } else if (!match.isEstablished && match.product && asset.extractedPrice !== match.product.currentPrice) {
+      } else if (!match.isEstablished && match.product && asset.extractedPrice !== targetPrice) {
         // Uncertain match - flag for human review
         conflicts.push({
           id: `conf-uncertain-price-${asset.id}`,
@@ -101,7 +133,7 @@ export function auditCampaignConsistency(
 
   if (priceSet.size > 1) {
     const defaultProduct = kb.products[0];
-    const approvedPrice = defaultProduct?.currentPrice || 1299;
+    const approvedPrice = campaign.approvedPrice || defaultProduct?.currentPrice || 1299;
     conflicts.push({
       id: 'conf-price-cross-assets',
       type: 'Price Discrepancy',
@@ -112,6 +144,7 @@ export function auditCampaignConsistency(
         assetId: a.id,
         assetTitle: a.title,
         channel: a.channel,
+        teamName: a.teamName,
         detectedValue: a.extractedPriceStr || `₹${a.extractedPrice}`
       })),
       approvedTruth: {
@@ -120,6 +153,162 @@ export function auditCampaignConsistency(
         sourceDocument: `Product Pricing Catalog ${kb.activeVersion}`
       },
       suggestedAlignment: `Standardize all assets to their approved current catalog prices.`
+    });
+  }
+
+  // 1c. Cross-Asset Discount Percentage Check
+  const assetsWithDiscount = assets
+    .map(a => ({ asset: a, discount: extractDiscountPercent(a) }))
+    .filter((item): item is { asset: CampaignAsset; discount: number } => item.discount !== undefined && item.discount > 0);
+
+  const discountSet = new Set(assetsWithDiscount.map(d => d.discount));
+  const targetDiscount = campaign.approvedDiscountPercent;
+
+  if (discountSet.size > 1 || (targetDiscount !== undefined && assetsWithDiscount.some(d => d.discount !== targetDiscount))) {
+    const approvedVal = targetDiscount !== undefined ? `${targetDiscount}% OFF` : `${Array.from(discountSet)[0]}% OFF (Standard)`;
+    conflicts.push({
+      id: 'conf-discount-cross-assets',
+      type: 'Discount Percentage Mismatch',
+      title: 'Conflicting Promotional Discount Percentages Across Channels',
+      severity: 'HIGH',
+      description: `Discrepancy in advertised discount rates: ${assetsWithDiscount.map(d => `${d.asset.channel} (${d.discount}% OFF)`).join(' vs ')}. Consumers see conflicting promotional savings across touchpoints.`,
+      involvedAssets: assetsWithDiscount.map(d => ({
+        assetId: d.asset.id,
+        assetTitle: d.asset.title,
+        channel: d.asset.channel,
+        teamName: d.asset.teamName,
+        detectedValue: `${d.discount}% OFF`
+      })),
+      approvedTruth: {
+        rule: `Authorized Promotional Discount Rate`,
+        validValue: approvedVal,
+        sourceDocument: `${campaign.name} Brief`
+      },
+      suggestedAlignment: `Harmonize promotional discount percentage to ${approvedVal} across all marketing copy.`
+    });
+  }
+
+  // 1d. Cross-Asset Promo Code Check
+  const assetsWithCode = assets
+    .map(a => ({ asset: a, code: extractPromoCode(a) }))
+    .filter((item): item is { asset: CampaignAsset; code: string } => Boolean(item.code));
+
+  const codeSet = new Set(assetsWithCode.map(c => c.code));
+  const targetCode = campaign.approvedPromoCode?.toUpperCase();
+
+  if (codeSet.size > 1 || (targetCode && assetsWithCode.some(c => c.code !== targetCode))) {
+    const validCode = targetCode || Array.from(codeSet)[0];
+    conflicts.push({
+      id: 'conf-promo-code-mismatch',
+      type: 'Promo Code Inconsistency',
+      title: 'Conflicting Checkout Promo Codes Across Campaign Channels',
+      severity: 'HIGH',
+      description: `Inconsistent promotional checkout codes detected: ${assetsWithCode.map(c => `${c.asset.channel} uses "${c.code}"`).join(', ')}. May cause checkout bounce or failed redemption.`,
+      involvedAssets: assetsWithCode.map(c => ({
+        assetId: c.asset.id,
+        assetTitle: c.asset.title,
+        channel: c.asset.channel,
+        teamName: c.asset.teamName,
+        detectedValue: `Code: ${c.code}`
+      })),
+      approvedTruth: {
+        rule: 'Approved Campaign Checkout Voucher Code',
+        validValue: validCode,
+        sourceDocument: `${campaign.name} Promo Schedule`
+      },
+      suggestedAlignment: `Standardize all digital banners and social posts to active code "${validCode}".`
+    });
+  }
+
+  // 1e. CSR Non-Commercial Policy Enforcement (e.g. Blood Donation Drives)
+  if (isCsrCampaign(campaign)) {
+    const commercialIncentiveKeywords = [
+      'gift voucher',
+      'vouchers',
+      '₹500',
+      'free skincare gift',
+      'reward card'
+    ];
+
+    const commercialAssets = assets.filter(a =>
+      commercialIncentiveKeywords.some(kw => a.fullText.toLowerCase().includes(kw)) ||
+      (a.extractedCta && /voucher|buy|cashback/i.test(a.extractedCta))
+    );
+
+    if (commercialAssets.length > 0) {
+      conflicts.push({
+        id: 'conf-csr-commercial-violation',
+        type: 'Commercial / Policy Violation',
+        title: 'Prohibited Commercial Incentive in Voluntary Blood Donation Campaign',
+        severity: 'HIGH',
+        description: `${commercialAssets.map(a => a.channel).join(', ')} advertises commercial gifts/vouchers for blood donors. Under NBTC and CCPA ethical standards, voluntary blood donation must remain non-remunerated and cannot be incentivized with commercial sales perks.`,
+        involvedAssets: commercialAssets.map(a => ({
+          assetId: a.id,
+          assetTitle: a.title,
+          channel: a.channel,
+          teamName: a.teamName,
+          detectedValue: a.extractedCta || 'Commercial gift voucher copy'
+        })),
+        approvedTruth: {
+          rule: 'NBTC & CCPA Voluntary Blood Donation Ethical Standards',
+          validValue: 'Strictly non-remunerated voluntary donation. Approved perk: Complimentary health checkup & donor certificate only.',
+          sourceDocument: 'National Blood Transfusion Council (NBTC) Ethical Guidelines'
+        },
+        suggestedAlignment: 'Remove all gift voucher/discount copy. Replace with "Complimentary Blood Donor Health Checkup & Refreshments".'
+      });
+    }
+
+    // Event date drift for CSR drive
+    const dateAssets = assets.filter(a => Boolean(a.extractedDate));
+    const datesDetected = Array.from(new Set(dateAssets.map(a => a.extractedDate)));
+    if (datesDetected.length > 1) {
+      conflicts.push({
+        id: 'conf-event-date-drift',
+        type: 'Date Expiry Conflict',
+        title: 'Event Date Discrepancy Across Blood Donation Creatives',
+        severity: 'HIGH',
+        description: `Conflicting drive dates detected across channels (${datesDetected.join(' vs ')}). Critical public health confusion risk.`,
+        involvedAssets: dateAssets.map(a => ({
+          assetId: a.id,
+          assetTitle: a.title,
+          channel: a.channel,
+          teamName: a.teamName,
+          detectedValue: a.extractedDate || 'Date mismatch'
+        })),
+        approvedTruth: {
+          rule: 'Approved Blood Donation Camp Schedule',
+          validValue: campaign.approvedVenue ? `14 November 2026 at ${campaign.approvedVenue}` : '14 November 2026 (9:00 AM – 5:00 PM)',
+          sourceDocument: 'CSR Program Master Schedule'
+        },
+        suggestedAlignment: 'Standardize event date to 14 November 2026 across all print standees and social creatives.'
+      });
+    }
+  }
+
+  // 1f. Call to Action (CTA) Divergence Check
+  const assetsWithCta = assets.filter(a => Boolean(a.extractedCta));
+  const targetCta = campaign.approvedCta;
+
+  if (targetCta && assetsWithCta.some(a => a.extractedCta && a.extractedCta !== targetCta)) {
+    conflicts.push({
+      id: 'conf-cta-divergence',
+      type: 'CTA Divergence',
+      title: 'Call-to-Action (CTA) Inconsistency Across Campaign Touchpoints',
+      severity: 'MEDIUM',
+      description: `Inconsistent calls to action: ${assetsWithCta.map(a => `${a.channel} uses "${a.extractedCta}"`).join(', ')}. All assets should guide users through a unified conversion path.`,
+      involvedAssets: assetsWithCta.map(a => ({
+        assetId: a.id,
+        assetTitle: a.title,
+        channel: a.channel,
+        teamName: a.teamName,
+        detectedValue: a.extractedCta || 'Unspecified CTA'
+      })),
+      approvedTruth: {
+        rule: 'Approved Primary Campaign Call to Action',
+        validValue: targetCta,
+        sourceDocument: `${campaign.name} Campaign Brief`
+      },
+      suggestedAlignment: `Align all hero action buttons to approved CTA "${targetCta}".`
     });
   }
 
@@ -141,6 +330,7 @@ export function auditCampaignConsistency(
         assetId: a.id,
         assetTitle: a.title,
         channel: a.channel,
+        teamName: a.teamName,
         detectedValue: a.extractedLogoVersion || 'Unknown Logo'
       })),
       approvedTruth: {
@@ -172,6 +362,7 @@ export function auditCampaignConsistency(
         assetId: t.asset.id,
         assetTitle: t.asset.title,
         channel: t.asset.channel,
+        teamName: t.asset.teamName,
         detectedValue: t.tagline
       })),
       approvedTruth: {
@@ -185,65 +376,76 @@ export function auditCampaignConsistency(
 
   // 4. Missing Disclaimers Check
   const missingDisclaimerAssets = assets.filter(a =>
-    a.extractedDisclaimer?.toLowerCase().includes('missing') ||
-    a.extractedDisclaimer?.toLowerCase().includes('none')
+    !a.extractedDisclaimer ||
+    a.extractedDisclaimer.toLowerCase().includes('missing') ||
+    a.extractedDisclaimer.toLowerCase().includes('none')
   );
 
   if (missingDisclaimerAssets.length > 0) {
+    const defaultDisc = isCsrCampaign(campaign)
+      ? '*Voluntary non-remunerated blood donation organized under NBTC ethical guidelines.'
+      : kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
+
     conflicts.push({
       id: 'conf-disc-omitted',
       type: 'Missing Disclaimer',
-      title: 'Mandatory Clinical Disclaimer Omitted in Social Channel',
+      title: isCsrCampaign(campaign)
+        ? 'Mandatory Statutory Blood Donation Disclaimer Omitted'
+        : 'Mandatory Clinical Disclaimer Omitted in Social Channel',
       severity: 'HIGH',
-      description: `${missingDisclaimerAssets.map(a => a.channel).join(', ')} carries promotional claims without the required clinical trial disclaimer asterisk and explanatory footnote.`,
-      involvedAssets: assets.map(a => ({
-        assetId: a.id,
-        assetTitle: a.title,
-        channel: a.channel,
-        detectedValue: a.extractedDisclaimer || 'No disclaimer'
-      })),
-      approvedTruth: {
-        rule: 'Mandatory Clinical Trial Substantiation Disclaimer',
-        validValue: kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.',
-        sourceDocument: 'Legal & Regulatory Standards (ASCI / CCPA)'
-      },
-      suggestedAlignment: 'Append approved clinical footnote in caption or asset footer.'
-    });
-  }
-
-  // 5. Cross-Asset Expiry Date Check
-  const expiredDateAssets = assets.filter(a =>
-    a.extractedDate?.toLowerCase().includes('expired') ||
-    a.extractedDate?.toLowerCase().includes('30 sept')
-  );
-
-  if (expiredDateAssets.length > 0) {
-    conflicts.push({
-      id: 'conf-date-expiry',
-      type: 'Date Expiry Conflict',
-      title: 'Campaign Expiration Date Drift Across Channels',
-      severity: 'MEDIUM',
-      description: 'Multiple assets broadcast expired or diverging campaign validity periods. Standee lists expired September date whereas active campaign runs through 30 November 2026.',
+      description: `${missingDisclaimerAssets.map(a => a.channel).join(', ')} carries promotional claims without the required statutory disclaimer footnote.`,
       involvedAssets: assets.map(a => ({
         assetId: a.id,
         assetTitle: a.title,
         channel: a.channel,
         teamName: a.teamName,
-        detectedValue: a.extractedDate || 'Standard Term'
+        detectedValue: a.extractedDisclaimer || 'No disclaimer'
       })),
       approvedTruth: {
-        rule: 'Approved Autumn Campaign Term',
-        validValue: '01 October 2026 through 30 November 2026',
-        sourceDocument: 'Q4 Master Campaign Brief 2026'
+        rule: isCsrCampaign(campaign) ? 'NBTC Statutory Public Health Notice' : 'Mandatory Clinical Trial Substantiation Disclaimer',
+        validValue: defaultDisc,
+        sourceDocument: 'Legal & Regulatory Standards (ASCI / CCPA / NBTC)'
       },
-      suggestedAlignment: 'Standardize campaign validity end-date to 30 November 2026 across all print and digital assets.'
+      suggestedAlignment: 'Append approved statutory footnote in caption or asset footer.'
     });
+  }
+
+  // 5. Cross-Asset Expiry Date Check (for non-CSR campaigns)
+  if (!isCsrCampaign(campaign)) {
+    const expiredDateAssets = assets.filter(a =>
+      a.extractedDate?.toLowerCase().includes('expired') ||
+      a.extractedDate?.toLowerCase().includes('30 sept') ||
+      a.extractedDate?.toLowerCase().includes('31 oct') ||
+      a.extractedDate?.toLowerCase().includes('25 dec')
+    );
+
+    if (expiredDateAssets.length > 0) {
+      conflicts.push({
+        id: 'conf-date-expiry',
+        type: 'Date Expiry Conflict',
+        title: 'Campaign Expiration Date Drift Across Channels',
+        severity: 'MEDIUM',
+        description: 'Multiple assets broadcast expired or diverging campaign validity periods. Standee lists expired date whereas active campaign runs through master schedule.',
+        involvedAssets: assets.map(a => ({
+          assetId: a.id,
+          assetTitle: a.title,
+          channel: a.channel,
+          teamName: a.teamName,
+          detectedValue: a.extractedDate || 'Standard Term'
+        })),
+        approvedTruth: {
+          rule: 'Approved Campaign Term',
+          validValue: campaign.endDate ? `Valid through ${campaign.endDate}` : '01 October 2026 through 30 November 2026',
+          sourceDocument: 'Master Campaign Brief'
+        },
+        suggestedAlignment: `Standardize campaign validity end-date to ${campaign.endDate || '30 November 2026'} across all assets.`
+      });
+    }
   }
 
   // 6. Cross-Asset Background Visual Scene Check
   const backgroundRules = kb.backgroundGuidelines?.restrictedElements || [];
   const assetsWithBgWarnings = assets.filter(a => {
-    // Only inspect visual background scene description, never marketing body copy
     const textToCheck = `${a.extractedBackground || ''}`.trim();
     if (!textToCheck) return false;
     return backgroundRules.some(rule =>
@@ -277,23 +479,44 @@ export function auditCampaignConsistency(
   // Update asset statuses based on conflict involvement
   const updatedAssets = assets.map(asset => {
     const assetConflicts = conflicts.filter(c =>
-      c.involvedAssets.some(ia => ia.assetId === asset.id && (
-        c.type === 'Outdated Logo' ? ia.detectedValue.includes('v2') || ia.detectedValue.includes('Deprecated') :
-        c.type === 'Price Discrepancy' ? (() => {
-          const match = matchProductFromCreative(`${asset.title} ${asset.fullText}`, kb.products, {
-            explicitSku: asset.productSku,
-            explicitProductId: asset.productId,
-            assetTitle: asset.title
-          });
-          const target = match.product?.currentPrice ?? kb.products[0]?.currentPrice ?? 1299;
-          return asset.extractedPrice !== undefined && asset.extractedPrice > 0 && asset.extractedPrice !== target;
-        })() :
-        c.type === 'Missing Disclaimer' ? ia.detectedValue.toLowerCase().includes('missing') || ia.detectedValue.toLowerCase().includes('no') :
-        c.type === 'Tagline Inconsistency' ? ia.detectedValue.includes('most loved') || ia.detectedValue.includes('miracle') || ia.detectedValue.includes('care') :
-        c.type === 'Date Expiry Conflict' ? ia.detectedValue.toLowerCase().includes('expired') || ia.detectedValue.toLowerCase().includes('30 sept') :
-        c.type === 'Background Scene Warning' ? ia.detectedValue.toLowerCase().includes('warning') || ia.detectedValue.toLowerCase().includes('animal') || ia.detectedValue.toLowerCase().includes('meat') || ia.detectedValue.toLowerCase().includes('religion') || ia.detectedValue.toLowerCase().includes('serum') || ia.detectedValue.toLowerCase().includes('restricted') :
-        false
-      ))
+      c.involvedAssets.some(ia => {
+        if (ia.assetId !== asset.id) return false;
+        switch (c.type) {
+          case 'Outdated Logo':
+            return ia.detectedValue.includes('v2') || ia.detectedValue.includes('Deprecated') || ia.detectedValue.includes('Vintage');
+          case 'Price Discrepancy': {
+            const match = matchProductFromCreative(`${asset.title} ${asset.fullText}`, kb.products, {
+              explicitSku: asset.productSku,
+              explicitProductId: asset.productId,
+              assetTitle: asset.title
+            });
+            const target = campaign.approvedPrice ?? match.product?.currentPrice ?? kb.products[0]?.currentPrice ?? 1299;
+            return asset.extractedPrice !== undefined && asset.extractedPrice > 0 && asset.extractedPrice !== target;
+          }
+          case 'Discount Percentage Mismatch':
+            return campaign.approvedDiscountPercent !== undefined
+              ? (extractDiscountPercent(asset) ?? 0) !== campaign.approvedDiscountPercent
+              : true;
+          case 'Promo Code Inconsistency':
+            return campaign.approvedPromoCode
+              ? (extractPromoCode(asset) ?? '') !== campaign.approvedPromoCode.toUpperCase()
+              : true;
+          case 'CTA Divergence':
+            return campaign.approvedCta ? asset.extractedCta !== campaign.approvedCta : true;
+          case 'Commercial / Policy Violation':
+            return /voucher|₹500|cashback|buy now/i.test(asset.fullText) || (asset.extractedCta && /voucher|buy|cashback/i.test(asset.extractedCta));
+          case 'Missing Disclaimer':
+            return !ia.detectedValue || ia.detectedValue.toLowerCase().includes('missing') || ia.detectedValue.toLowerCase().includes('no');
+          case 'Tagline Inconsistency':
+            return ia.detectedValue.includes('most loved') || ia.detectedValue.includes('miracle') || ia.detectedValue.includes('care') || ia.detectedValue.includes('24 Hours');
+          case 'Date Expiry Conflict':
+            return ia.detectedValue.toLowerCase().includes('expired') || ia.detectedValue.toLowerCase().includes('30 sept') || ia.detectedValue.toLowerCase().includes('12 nov') || ia.detectedValue.toLowerCase().includes('31 oct') || ia.detectedValue.toLowerCase().includes('25 dec');
+          case 'Background Scene Warning':
+            return ia.detectedValue.toLowerCase().includes('warning') || ia.detectedValue.toLowerCase().includes('animal') || ia.detectedValue.toLowerCase().includes('meat') || ia.detectedValue.toLowerCase().includes('religion') || ia.detectedValue.toLowerCase().includes('serum') || ia.detectedValue.toLowerCase().includes('restricted');
+          default:
+            return false;
+        }
+      })
     );
 
     return {
@@ -308,21 +531,33 @@ export function auditCampaignConsistency(
 
 /**
  * Batch-updates all conflicting assets in a campaign:
- * - Standardizes price to approved catalog price (₹1,299)
+ * - Standardizes prices to approved campaign/catalog rate
+ * - Harmonizes discount percentages (e.g. 25% OFF)
+ * - Harmonizes checkout promo codes (e.g. DIWALI25, WINTERFEST)
  * - Upgrades deprecated Logo v2 to approved Logo v3.0
  * - Unifies taglines to approved primary tagline
- * - Appends mandatory clinical trial footnotes
- * - Extends validity to approved term (30 Nov 2026)
+ * - Appends mandatory statutory/clinical trial footnotes
+ * - Extends validity to approved term
+ * - Enforces CSR ethical rules (replaces commercial gift vouchers with health checkups)
  * - Re-audits the campaign to verify zero conflicts remain
  */
 export function autoAlignCampaignAssets(
   campaign: Campaign,
   kb: BrandKnowledgeBase
 ): { updatedCampaign: Campaign; alignedCount: number } {
-  const currentPrice = kb.products[0]?.currentPrice ?? 1299;
   const currentLogoVersion = kb.logos.find(l => l.status === 'Approved Current')?.version || 'Logo v3 (Approved)';
-  const approvedTagline = kb.tone.primaryTagline;
-  const approvedDisclaimer = kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
+  const approvedTagline =
+    campaign.category === 'Festive'
+      ? 'Celebrate Your Natural Radiance.'
+      : campaign.category === 'CSR & Public Health'
+      ? 'Aurelia Community Care & Wellness.'
+      : campaign.category === 'Winter / Seasonal'
+      ? 'Deep Winter Barrier Protection.'
+      : kb.tone.primaryTagline;
+
+  const approvedDisclaimer = isCsrCampaign(campaign)
+    ? '*Voluntary non-remunerated blood donation conducted in strict partnership with Armed Forces Transfusion Centre under NBTC guidelines. Zero commercial compensation provided.'
+    : kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
 
   let alignedCount = 0;
 
@@ -330,33 +565,88 @@ export function autoAlignCampaignAssets(
     let wasModified = false;
     let newPrice = asset.extractedPrice;
     let newPriceStr = asset.extractedPriceStr;
+    let newDiscount = asset.extractedDiscountPercent;
+    let newPromoCode = asset.extractedPromoCode;
+    let newCta = asset.extractedCta;
     let newLogoVersion = asset.extractedLogoVersion;
     let newTagline = asset.extractedTagline;
     let newDisclaimer = asset.extractedDisclaimer;
     let newDate = asset.extractedDate;
+    let newVenue = asset.extractedVenue;
     let newBackground = asset.extractedBackground;
     let newBackgroundStatus = asset.backgroundStatus;
     let newFullText = asset.fullText;
 
     // 1. Align Price
-    const match = matchProductFromCreative(`${asset.title} ${asset.fullText}`, kb.products, {
-      explicitSku: asset.productSku,
-      explicitProductId: asset.productId,
-      assetTitle: asset.title
-    });
-    const assetTargetPrice = match.product?.currentPrice ?? kb.products[0]?.currentPrice ?? 1299;
+    if (campaign.category !== 'CSR & Public Health') {
+      const match = matchProductFromCreative(`${asset.title} ${asset.fullText}`, kb.products, {
+        explicitSku: asset.productSku,
+        explicitProductId: asset.productId,
+        assetTitle: asset.title
+      });
+      const assetTargetPrice = campaign.approvedPrice ?? match.product?.currentPrice ?? kb.products[0]?.currentPrice ?? 1299;
 
-    if (asset.extractedPrice !== undefined && asset.extractedPrice !== assetTargetPrice) {
-      newPrice = assetTargetPrice;
-      newPriceStr = `₹${assetTargetPrice.toLocaleString('en-IN')}`;
-      if (asset.extractedPrice) {
-        newFullText = newFullText.replace(new RegExp(`₹\\s?${asset.extractedPrice}|\\b${asset.extractedPrice}\\b`, 'g'), `₹${assetTargetPrice.toLocaleString('en-IN')}`);
+      if (asset.extractedPrice !== undefined && asset.extractedPrice !== assetTargetPrice) {
+        newPrice = assetTargetPrice;
+        newPriceStr = `₹${assetTargetPrice.toLocaleString('en-IN')}`;
+        if (asset.extractedPrice) {
+          newFullText = newFullText.replace(new RegExp(`₹\\s?${asset.extractedPrice}|\\b${asset.extractedPrice}\\b`, 'g'), `₹${assetTargetPrice.toLocaleString('en-IN')}`);
+        }
+        newFullText = newFullText.replace(/₹\s?1[,.]?099/g, `₹${assetTargetPrice.toLocaleString('en-IN')}`);
+        newFullText = newFullText.replace(/₹\s?1[,.]?399/g, `₹${assetTargetPrice.toLocaleString('en-IN')}`);
+        wasModified = true;
       }
-      newFullText = newFullText.replace(/₹\s?1[,.]?099/g, `₹${assetTargetPrice.toLocaleString('en-IN')}`);
-      wasModified = true;
     }
 
-    // 2. Align Logo
+    // 2. Align Discount Percentage
+    if (campaign.approvedDiscountPercent !== undefined) {
+      if (asset.extractedDiscountPercent !== campaign.approvedDiscountPercent) {
+        newDiscount = campaign.approvedDiscountPercent;
+        newFullText = newFullText.replace(/\b\d{1,2}\s*%\s*(?:off|discount)\b/gi, `${campaign.approvedDiscountPercent}% OFF`);
+        wasModified = true;
+      }
+    }
+
+    // 3. Align Promo Code
+    if (campaign.approvedPromoCode) {
+      if (asset.extractedPromoCode !== campaign.approvedPromoCode) {
+        newPromoCode = campaign.approvedPromoCode;
+        newFullText = newFullText.replace(/\bcode\s*:?\s*[A-Z0-9_-]+\b/gi, `code ${campaign.approvedPromoCode}`);
+        wasModified = true;
+      }
+    }
+
+    // 4. Align CTA
+    if (campaign.approvedCta) {
+      if (asset.extractedCta !== campaign.approvedCta) {
+        newCta = campaign.approvedCta;
+        wasModified = true;
+      }
+    }
+
+    // 5. CSR Ethical Rule Alignment (Remove commercial perks)
+    if (isCsrCampaign(campaign)) {
+      if (/voucher|₹500|cashback/i.test(newFullText)) {
+        newFullText = newFullText.replace(
+          /Free\s*₹?500\s*(?:Skincare\s*)?Gift\s*Vouchers?\s*(?:for\s*(?:every\s*)?blood\s*donors?)?/gi,
+          'Complimentary Blood Donor Health Checkup & Refreshments'
+        );
+        newFullText = newFullText.replace(/vouchers/gi, 'donor recognition certificate');
+        wasModified = true;
+      }
+      if (newVenue && newVenue.includes('Ward B')) {
+        newVenue = campaign.approvedVenue || 'Aurelia Health Center, City Campus, Pune';
+        newFullText = newFullText.replace(/City Hospital Ward B/gi, newVenue);
+        wasModified = true;
+      }
+      if (newDate && (newDate.includes('12 Nov') || newDate.includes('12 November'))) {
+        newDate = '14 November 2026';
+        newFullText = newFullText.replace(/12 November 2026/gi, '14 November 2026');
+        wasModified = true;
+      }
+    }
+
+    // 6. Align Logo
     if (asset.extractedLogoVersion && (
       asset.extractedLogoVersion.toLowerCase().includes('v2') ||
       asset.extractedLogoVersion.toLowerCase().includes('deprecated') ||
@@ -367,18 +657,17 @@ export function autoAlignCampaignAssets(
       wasModified = true;
     }
 
-    // 3. Align Tagline
-    if (asset.extractedTagline && (
-      asset.extractedTagline.toLowerCase().includes('most loved') ||
-      asset.extractedTagline.toLowerCase().includes('miracle') ||
-      asset.extractedTagline.toLowerCase().includes('care')
-    )) {
+    // 7. Align Tagline
+    if (asset.extractedTagline && asset.extractedTagline !== approvedTagline) {
       newTagline = approvedTagline;
       newFullText = newFullText.replace(/India's most loved moisturizer!/gi, approvedTagline);
+      newFullText = newFullText.replace(/Miracle Festive Glow in 24 Hours/gi, approvedTagline);
+      newFullText = newFullText.replace(/100% cure for winter eczema in 24 hours!/gi, approvedTagline);
+      newFullText = newFullText.replace(/Pure care, real results\.?/gi, approvedTagline);
       wasModified = true;
     }
 
-    // 4. Align Disclaimer
+    // 8. Align Disclaimer
     if (!asset.extractedDisclaimer ||
       asset.extractedDisclaimer.toLowerCase().includes('missing') ||
       asset.extractedDisclaimer.toLowerCase().includes('no disclaimer')
@@ -390,17 +679,18 @@ export function autoAlignCampaignAssets(
       wasModified = true;
     }
 
-    // 5. Align Expiry Date
+    // 9. Align Expiry Date
     if (asset.extractedDate && (
       asset.extractedDate.toLowerCase().includes('expired') ||
       asset.extractedDate.toLowerCase().includes('30 sept') ||
-      asset.extractedDate.toLowerCase().includes('31 oct')
+      asset.extractedDate.toLowerCase().includes('31 oct') ||
+      asset.extractedDate.toLowerCase().includes('25 dec')
     )) {
-      newDate = 'Valid till 30 Nov 2026';
+      newDate = campaign.endDate ? `Valid till ${campaign.endDate}` : 'Valid till 30 Nov 2026';
       wasModified = true;
     }
 
-    // 6. Align Background if warning
+    // 10. Align Background if warning
     if (asset.backgroundStatus === 'Warning' || asset.extractedBackground?.includes('⚠️')) {
       newBackground = '✓ Pearl Cream (#F7F5F0) minimalist laboratory backdrop with fresh botanical leaf';
       newBackgroundStatus = 'Clean';
@@ -415,6 +705,10 @@ export function autoAlignCampaignAssets(
       ...asset,
       extractedPrice: newPrice,
       extractedPriceStr: newPriceStr,
+      extractedDiscountPercent: newDiscount,
+      extractedPromoCode: newPromoCode,
+      extractedCta: newCta,
+      extractedVenue: newVenue,
       extractedLogoVersion: newLogoVersion,
       extractedTagline: newTagline,
       extractedDisclaimer: newDisclaimer,

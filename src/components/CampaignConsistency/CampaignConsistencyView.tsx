@@ -13,19 +13,30 @@ import {
   Eye,
   Image as ImageIcon,
   Wand2,
-  Grid
+  Grid,
+  Sparkles,
+  Calendar,
+  Percent,
+  Key,
+  HeartHandshake,
+  Snowflake,
+  Flame,
+  ArrowRight
 } from 'lucide-react';
 import { Campaign, CampaignAsset, TeamCampaignBatch } from '../../types/campaign';
 import { BrandKnowledgeBase } from '../../types/brand';
-import { auditCampaignConsistency, autoAlignCampaignAssets } from '../../services/campaignEngine';
-import { saveCampaign } from '../../services/storageService';
+import { auditCampaignConsistency, autoAlignCampaignAssets, isCsrCampaign } from '../../services/campaignEngine';
+import { saveCampaign, PRESET_CAMPAIGNS } from '../../services/storageService';
 import { isValidImageUrl } from '../../services/imageStorage';
 import { AssetCardsGrid } from './AssetCardsGrid';
 import { AddAssetModal } from './AddAssetModal';
 import { CrossAssetConflictMatrix } from './CrossAssetConflictMatrix';
+import { SideBySideComparator } from './SideBySideComparator';
 
 interface CampaignConsistencyViewProps {
   campaign: Campaign;
+  allCampaigns?: Campaign[];
+  onSelectCampaign?: (campaignId: string) => void;
   kb: BrandKnowledgeBase;
   onUpdateCampaign: (updated: Campaign) => void;
   onInspectAssetInAuditor: (asset: CampaignAsset) => void;
@@ -33,21 +44,36 @@ interface CampaignConsistencyViewProps {
 
 export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = ({
   campaign,
+  allCampaigns,
+  onSelectCampaign,
   kb,
   onUpdateCampaign,
   onInspectAssetInAuditor
 }) => {
   const [activeBatchIndex, setActiveBatchIndex] = useState(0);
-  const [viewMode, setViewMode] = useState<'batches' | 'grid'>('batches');
+  const [viewMode, setViewMode] = useState<'comparator' | 'batches' | 'grid'>('comparator');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAuditingBatches, setIsAuditingBatches] = useState(false);
   const [hasAuditedCampaign, setHasAuditedCampaign] = useState(true);
   const [alignmentSuccessMessage, setAlignmentSuccessMessage] = useState<string | null>(null);
 
-  // Derived baseline from Module 1 Knowledge Base
-  const benchmarkTagline = kb.tone.primaryTagline;
+  const availableCampaigns = allCampaigns && allCampaigns.length > 0 ? allCampaigns : PRESET_CAMPAIGNS;
+
+  // Derived baseline from Module 1 Knowledge Base or Campaign Targets
+  const benchmarkTagline =
+    campaign.category === 'Festive'
+      ? 'Celebrate Your Natural Radiance.'
+      : campaign.category === 'CSR & Public Health'
+      ? 'Aurelia Community Care & Wellness.'
+      : campaign.category === 'Winter / Seasonal'
+      ? 'Deep Winter Barrier Protection.'
+      : kb.tone.primaryTagline;
+
   const benchmarkLogo = kb.logos.find(l => l.status === 'Approved Current')?.version || 'v3.0';
-  const benchmarkDisclaimer = kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
+
+  const benchmarkDisclaimer = isCsrCampaign(campaign)
+    ? '*Voluntary non-remunerated blood donation conducted in strict partnership with Armed Forces Transfusion Centre under NBTC guidelines. Zero commercial compensation provided.'
+    : kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
 
   // Run dynamic audit against campaign assets and knowledge base
   const { conflicts, updatedAssets } = useMemo(() => {
@@ -107,42 +133,22 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
     const { updatedCampaign, alignedCount } = autoAlignCampaignAssets(campaign, kb);
     onUpdateCampaign(updatedCampaign);
     saveCampaign(updatedCampaign);
-    setAlignmentSuccessMessage(`Successfully auto-aligned ${alignedCount} creative assets! All prices aligned to approved catalog rates, logos upgraded to ${benchmarkLogo}, and disclaimers applied.`);
+    setAlignmentSuccessMessage(
+      `⚡ Successfully auto-aligned ${alignedCount} creative assets for "${campaign.name}"! Discrepant prices, discount rates, promo codes, dates, and regulatory disclaimers have been harmonized.`
+    );
     setTimeout(() => setAlignmentSuccessMessage(null), 5000);
   };
 
   const handleAutoAlignBatch = (teamName: string) => {
-    const defaultPrice = kb.products[0]?.currentPrice ?? 1299;
-    const currentLogoVersion = kb.logos.find(l => l.status === 'Approved Current')?.version || 'Logo v3 (Approved)';
-    const approvedTagline = kb.tone.primaryTagline;
-    const approvedDisclaimer = kb.disclaimers[0]?.disclaimerText || '*Based on clinical trial of 30 women over 4 weeks.';
+    const batchAssets = campaign.assets.filter(a => a.teamName === teamName);
+    const subCampaign: Campaign = {
+      ...campaign,
+      assets: batchAssets
+    };
+    const { updatedCampaign: alignedSub } = autoAlignCampaignAssets(subCampaign, kb);
+    const alignedMap = new Map(alignedSub.assets.map(a => [a.id, a]));
 
-    const newAssets = campaign.assets.map(asset => {
-      if (asset.teamName !== teamName) return asset;
-      const matchedProd = asset.productSku
-        ? kb.products.find(p => p.sku === asset.productSku)
-        : asset.productId
-        ? kb.products.find(p => p.id === asset.productId)
-        : kb.products.find(p => asset.title.toLowerCase().includes(p.productName.toLowerCase()) || (p.aliases && p.aliases.some(a => asset.title.toLowerCase().includes(a.toLowerCase())))) || kb.products[0];
-      const targetPrice = matchedProd?.currentPrice ?? defaultPrice;
-
-      return {
-        ...asset,
-        extractedPrice: targetPrice,
-        extractedPriceStr: `₹${targetPrice.toLocaleString('en-IN')}`,
-        extractedLogoVersion: currentLogoVersion,
-        extractedTagline: approvedTagline,
-        extractedDisclaimer: approvedDisclaimer,
-        extractedDate: '30 Nov 2026',
-        extractedBackground: '✓ Pearl Cream (#F7F5F0) clean approved laboratory backdrop',
-        backgroundStatus: 'Clean' as const,
-        backgroundFindings: [],
-        fullText: `${asset.title} - ${approvedTagline}. Price: ₹${targetPrice.toLocaleString('en-IN')}. ${approvedDisclaimer}`,
-        status: 'In Sync' as const,
-        conflictCount: 0
-      };
-    });
-
+    const newAssets = campaign.assets.map(a => (alignedMap.has(a.id) ? alignedMap.get(a.id)! : a));
     const reaudited = auditCampaignConsistency({ ...campaign, assets: newAssets }, kb);
     const updatedCampaign: Campaign = {
       ...campaign,
@@ -167,9 +173,111 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
     saveCampaign(updatedCampaign);
   };
 
+  const getCampaignIcon = (cat?: string) => {
+    switch (cat) {
+      case 'Festive':
+        return <Sparkles size={16} color="#C89B3C" />;
+      case 'CSR & Public Health':
+        return <HeartHandshake size={16} color="#DC2626" />;
+      case 'Winter / Seasonal':
+        return <Snowflake size={16} color="#0284C7" />;
+      default:
+        return <Layers size={16} color="#00473E" />;
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* SECTION 1: ADMIN BENCHMARK STANDARD */}
+      {/* CAMPAIGN SWITCHER CARD: BATCHES BASED ON REAL CAMPAIGN TYPES */}
+      <div
+        className="curved-section-box"
+        style={{
+          border: '1.5px solid #CBD5E1',
+          backgroundColor: '#FFFFFF',
+          padding: '20px 24px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.04)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Layers size={18} color="#00473E" />
+              <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
+                Active Multi-Channel Campaign Preset
+              </span>
+              <span className="badge badge-brand" style={{ fontSize: '11px', textTransform: 'uppercase' }}>
+                {campaign.category || 'Commercial Launch'}
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+              Switch between campaign presets to review tailored multi-channel assets (Festive, Blood Donation CSR, Winter, or Autumn Launch).
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 600 }}>Schedule:</span>
+            <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+              <Calendar size={12} style={{ marginRight: '4px' }} />
+              {campaign.startDate} to {campaign.endDate}
+            </span>
+          </div>
+        </div>
+
+        {/* 4 Campaign Preset Switcher Buttons */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '10px' }}>
+          {availableCampaigns.map(c => {
+            const isSelected = c.id === campaign.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => onSelectCampaign && onSelectCampaign(c.id)}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  border: isSelected ? '2px solid #00473E' : '1px solid #E2E8F0',
+                  backgroundColor: isSelected ? '#F0FDF4' : '#F8FAFC',
+                  boxShadow: isSelected ? '0 2px 8px rgba(0, 71, 62, 0.12)' : 'none',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {getCampaignIcon(c.category)}
+                    <span style={{ fontSize: '12.5px', fontWeight: 800, color: isSelected ? '#00473E' : '#0F172A' }}>
+                      {c.name.replace('Aurelia ', '')}
+                    </span>
+                  </div>
+                  {isSelected && (
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#16A34A' }} />
+                  )}
+                </div>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>
+                  {c.category === 'Festive'
+                    ? 'Diwali festive offers • DIWALI25'
+                    : c.category === 'CSR & Public Health'
+                    ? 'Blood donation drive • NBTC ethics'
+                    : c.category === 'Winter / Seasonal'
+                    ? 'Winter hydration duo • WINTERFEST'
+                    : 'Moisturizer launch • Standard catalog'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '4px', borderTop: '1px dashed #CBD5E1' }}>
+                  <span style={{ fontSize: '10.5px', color: '#475569', fontWeight: 600 }}>{c.assets.length} Channels</span>
+                  <span style={{ fontSize: '10px', color: isSelected ? '#15803D' : '#64748B', fontWeight: 700 }}>
+                    {isSelected ? '✓ Active Preset' : 'Switch →'}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SECTION 1: ADMIN BENCHMARK STANDARD DYNAMICALLY DERIVED */}
       <div
         className="curved-section-box"
         style={{
@@ -183,10 +291,10 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
             <ShieldCheck size={22} color="#00473E" />
             <div>
               <div style={{ fontSize: '16px', fontWeight: 800, color: '#00473E' }}>
-                Section 1: Admin Approved Benchmark Standard (Brand Memory v{kb.activeVersion})
+                Section 1: Approved Campaign Benchmark Standard ({campaign.name})
               </div>
               <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 400 }}>
-                This is the single source of truth defined by the Brand Manager. All agency campaign batches below must align with these parameters.
+                Single source of truth for this active campaign. All creative agencies and digital teams must align with these parameters.
               </div>
             </div>
           </div>
@@ -205,11 +313,15 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
               <span>Approved Palette</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#00473E', border: '1px solid #FFF', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: campaign.themeColor || '#00473E', border: '1px solid #FFF', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
               <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#C89B3C', border: '1px solid #FFF', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Emerald & Gold</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                {campaign.category === 'CSR & Public Health' ? 'Crimson & Pearl' : campaign.category === 'Festive' ? 'Festive Gold & Emerald' : 'Emerald & Gold'}
+              </span>
             </div>
-            <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>#00473E (Primary), #C89B3C (Accent)</div>
+            <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+              {campaign.themeColor || '#00473E'} (Primary Theme Color)
+            </div>
           </div>
 
           {/* Approved Voice & Tone */}
@@ -219,20 +331,26 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
               <span>Approved Voice & Tone</span>
             </div>
             <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#00473E' }}>
-              Calm, Factual, Clinical
+              {campaign.category === 'CSR & Public Health'
+                ? 'Compassionate, Civic, Respectful'
+                : campaign.category === 'Festive'
+                ? 'Festive Luxury, Radiant, Warm'
+                : 'Calm, Factual, Clinical'}
             </div>
             <div style={{ fontSize: '11px', color: '#DC2626', marginTop: '6px', fontWeight: 600 }}>
-              Prohibited: Hype, FOMO, Miracles
+              {campaign.category === 'CSR & Public Health'
+                ? 'Prohibited: Commercial sales perks & gift vouchers'
+                : 'Prohibited: Sensationalist hype & false guarantees'}
             </div>
           </div>
 
-          {/* Approved Tagline */}
+          {/* Approved Tagline / Slogan */}
           <div style={{ padding: '14px', backgroundColor: '#F0FDF4', borderRadius: '12px', border: '1.5px solid #BBF7D0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#166534', textTransform: 'uppercase', marginBottom: '8px' }}>
               <FileCheck2 size={14} color="#16A34A" />
               <span>Primary Approved Slogan</span>
             </div>
-            <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#00473E' }}>
+            <div style={{ fontSize: '13px', fontWeight: 800, color: '#00473E', lineHeight: '1.4' }}>
               "{benchmarkTagline}"
             </div>
             <div style={{ fontSize: '11px', color: '#15803D', marginTop: '6px' }}>
@@ -240,31 +358,46 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
             </div>
           </div>
 
-          {/* Approved Benchmark Price */}
-          <div style={{ padding: '14px', backgroundColor: '#F0FDF4', borderRadius: '12px', border: '1.5px solid #BBF7D0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>
-                <Tag size={14} color="#16A34A" />
-                <span>Catalog Active Prices</span>
+          {/* Commercial Parameters or CSR Venue */}
+          {campaign.category === 'CSR & Public Health' ? (
+            <div style={{ padding: '14px', backgroundColor: '#FEF2F2', borderRadius: '12px', border: '1.5px solid #FECACA' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', marginBottom: '6px' }}>
+                <HeartHandshake size={14} color="#DC2626" />
+                <span>Drive Venue & Date</span>
               </div>
-              <span style={{ fontSize: '10px', background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {kb.products.length} SKUs
-              </span>
+              <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#991B1B' }}>
+                14 November 2026 (9 AM – 5 PM)
+              </div>
+              <div style={{ fontSize: '11px', color: '#B91C1C', marginTop: '4px' }}>
+                Aurelia Health Center, City Campus, Pune
+              </div>
             </div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#00473E', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              {kb.products.slice(0, 3).map(prod => (
-                <div key={prod.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }} title={prod.productName}>
-                    {prod.productName.replace('Aurelia ', '')}
-                  </span>
-                  <span style={{ fontWeight: 800, color: '#00473E', fontSize: '12px' }}>₹{prod.currentPrice.toLocaleString('en-IN')}</span>
+          ) : (
+            <div style={{ padding: '14px', backgroundColor: '#F0FDF4', borderRadius: '12px', border: '1.5px solid #BBF7D0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>
+                  <Tag size={14} color="#16A34A" />
+                  <span>Approved Price & Promo</span>
                 </div>
-              ))}
+                {campaign.approvedDiscountPercent && (
+                  <span style={{ fontSize: '10px', background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                    {campaign.approvedDiscountPercent}% OFF
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#00473E' }}>
+                ₹{(campaign.approvedPrice || kb.products[0]?.currentPrice || 1299).toLocaleString('en-IN')}
+                {campaign.approvedPromoCode && (
+                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#15803D', marginLeft: '6px' }}>
+                    (Code: {campaign.approvedPromoCode})
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '11px', color: '#15803D', marginTop: '4px' }}>
+                Valid through {campaign.endDate}
+              </div>
             </div>
-            <div style={{ fontSize: '10px', color: '#15803D', marginTop: '5px', borderTop: '1px dashed #BBF7D0', paddingTop: '3px' }}>
-              {kb.products.length > 3 ? `+ ${kb.products.length - 3} more catalog items` : 'Active catalog prices from Brand Memory'}
-            </div>
-          </div>
+          )}
 
           {/* Approved Visual Logo */}
           <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
@@ -280,37 +413,23 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
             </div>
           </div>
 
-          {/* Mandatory Disclaimer */}
+          {/* Mandatory Statutory Disclaimer */}
           <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '8px' }}>
               <FileCheck2 size={14} color="#2563EB" />
               <span>Mandatory Disclaimer</span>
             </div>
-            <div style={{ fontSize: '11.5px', color: '#334155', fontStyle: 'italic', lineHeight: '1.4' }}>
+            <div style={{ fontSize: '11px', color: '#334155', fontStyle: 'italic', lineHeight: '1.4' }}>
               "{benchmarkDisclaimer.slice(0, 75)}..."
             </div>
             <div style={{ fontSize: '10.5px', color: '#2563EB', marginTop: '6px', fontWeight: 600 }}>
-              Required on all clinical & efficacy ads
-            </div>
-          </div>
-
-          {/* Approved Background Scene Standard */}
-          <div style={{ padding: '14px', backgroundColor: '#F0FDF4', borderRadius: '12px', border: '1.5px solid #BBF7D0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#166534', textTransform: 'uppercase', marginBottom: '8px' }}>
-              <ImageIcon size={14} color="#16A34A" />
-              <span>Background Scene Standard</span>
-            </div>
-            <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#00473E' }}>
-              Pearl Cream, Lab Glass, Botanical Flora
-            </div>
-            <div style={{ fontSize: '11px', color: '#15803D', marginTop: '6px', fontWeight: 600 }}>
-              ✓ Cruelty-free vegan & secular backdrops
+              Required across all campaign materials
             </div>
           </div>
         </div>
       </div>
 
-      {/* CENTRAL ACTION BAR: REVIEW CAMPAIGN BATCHES & AUTO-ALIGN ALL */}
+      {/* CENTRAL ACTION BAR */}
       <div
         style={{
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
@@ -342,10 +461,10 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
           </div>
           <div>
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#FFFFFF' }}>
-              Cross-Audit All Campaign Assets Against Admin Baseline
+              Cross-Audit: {campaign.name}
             </div>
             <div style={{ fontSize: '12.5px', color: '#94A3B8', marginTop: '2px' }}>
-              {updatedAssets.length} assets audited dynamically. {conflicts.length} cross-team conflicts currently surfaced.
+              {updatedAssets.length} channel assets monitored. {conflicts.length} active cross-channel conflicts detected.
             </div>
           </div>
         </div>
@@ -374,7 +493,7 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
             onClick={handleAutoAlignAll}
           >
             <Wand2 size={16} />
-            <span>⚡ Auto-Align All Batches</span>
+            <span>⚡ Harmonize All Channels</span>
           </button>
         </div>
       </div>
@@ -385,41 +504,50 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
             backgroundColor: '#F0FDF4',
             border: '1px solid #BBF7D0',
             color: '#166534',
-            padding: '12px 18px',
+            padding: '14px 18px',
             borderRadius: '10px',
             fontSize: '13px',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '10px',
+            boxShadow: '0 2px 8px rgba(22, 163, 74, 0.08)'
           }}
         >
-          <CheckCircle2 size={18} color="#16A34A" />
+          <CheckCircle2 size={20} color="#16A34A" />
           <span>{alignmentSuccessMessage}</span>
         </div>
       )}
 
-      {/* SECTION 2: MULTI-TEAM CAMPAIGN BATCHES & ASSET ROSTER */}
+      {/* SECTION 2: VIEW SWITCHER (SIDE-BY-SIDE COMPARATOR, AGENCY BATCHES, ASSET GRID) */}
       <div className="curved-section-box">
         <div className="curved-section-header">
           <div className="curved-section-title">
             <Users size={20} color="#2563EB" />
             <div>
               <span style={{ fontSize: '16px', fontWeight: 800 }}>
-                Section 2: Multi-Team Campaign Creatives ({batches.length} Teams: {updatedAssets.length} Assets)
+                Campaign Channels & Assets ({updatedAssets.length} Assets Across {batches.length} Production Units)
               </span>
               <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 400 }}>
-                Assets submitted by agency partners and internal teams. Audited live for consistency.
+                Audited dynamically for cross-channel price, discount %, promo code, and date consistency.
               </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* View Switcher: Team Batches vs Asset Grid */}
+            {/* View Switcher: Side-by-Side Comparator vs Agency Batches vs Asset Grid */}
             <div style={{ display: 'flex', backgroundColor: '#F1F5F9', borderRadius: '8px', padding: '2px' }}>
               <button
+                className={`btn btn-sm ${viewMode === 'comparator' ? 'btn-brand' : 'btn-secondary'}`}
+                style={{ padding: '5px 12px', fontSize: '11.5px', border: 'none' }}
+                onClick={() => setViewMode('comparator')}
+              >
+                <Layers size={13} />
+                <span>Side-by-Side Diff</span>
+              </button>
+              <button
                 className={`btn btn-sm ${viewMode === 'batches' ? 'btn-brand' : 'btn-secondary'}`}
-                style={{ padding: '4px 10px', fontSize: '11.5px', border: 'none' }}
+                style={{ padding: '5px 12px', fontSize: '11.5px', border: 'none' }}
                 onClick={() => setViewMode('batches')}
               >
                 <Users size={13} />
@@ -427,11 +555,11 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
               </button>
               <button
                 className={`btn btn-sm ${viewMode === 'grid' ? 'btn-brand' : 'btn-secondary'}`}
-                style={{ padding: '4px 10px', fontSize: '11.5px', border: 'none' }}
+                style={{ padding: '5px 12px', fontSize: '11.5px', border: 'none' }}
                 onClick={() => setViewMode('grid')}
               >
                 <Grid size={13} />
-                <span>Asset Grid</span>
+                <span>Grid View</span>
               </button>
             </div>
 
@@ -447,7 +575,17 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
           </div>
         </div>
 
-        {/* View Mode 1: Team Batches View */}
+        {/* VIEW MODE 1: STEP 2 INTERACTIVE SIDE-BY-SIDE COMPARATOR */}
+        {viewMode === 'comparator' && (
+          <SideBySideComparator
+            campaign={campaign}
+            kb={kb}
+            onInspectAssetInAuditor={onInspectAssetInAuditor}
+            onHarmonizeAssets={handleAutoAlignAll}
+          />
+        )}
+
+        {/* VIEW MODE 2: AGENCY BATCHES VIEW */}
         {viewMode === 'batches' && (
           <div>
             {/* Batch Selector Tabs */}
@@ -569,7 +707,7 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
                               }`}
                               style={{ fontSize: '9px', padding: '1px 5px' }}
                             >
-                              {asset.auditStatus}
+                              Auditor: {asset.auditStatus}
                             </span>
                           )}
                           <span className={`badge ${hasFaults ? 'badge-violation' : 'badge-success'}`} style={{ fontSize: '10px' }}>
@@ -596,40 +734,45 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#64748B' }}>Extracted Price:</span>
+                          <span style={{ color: '#64748B' }}>Price:</span>
                           <strong style={{ color: hasFaults ? '#DC2626' : '#00473E' }}>
-                            {asset.extractedPriceStr}
+                            {campaign.category === 'CSR & Public Health'
+                              ? 'Free / Non-Commercial'
+                              : asset.extractedPriceStr || `₹${asset.extractedPrice || 'N/A'}`}
                           </strong>
                         </div>
+                        {asset.extractedDiscountPercent !== undefined && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#64748B' }}>Discount:</span>
+                            <span style={{ fontWeight: 700, color: '#C89B3C' }}>
+                              {asset.extractedDiscountPercent}% OFF
+                            </span>
+                          </div>
+                        )}
+                        {asset.extractedPromoCode && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#64748B' }}>Promo Code:</span>
+                            <code style={{ fontSize: '11px', color: '#2563EB', fontWeight: 700 }}>
+                              {asset.extractedPromoCode}
+                            </code>
+                          </div>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#64748B' }}>Logo Version:</span>
+                          <span style={{ color: '#64748B' }}>Logo Mark:</span>
                           <span style={{ color: asset.extractedLogoVersion?.includes('v2') ? '#DC2626' : '#16A34A', fontWeight: 600 }}>
-                            {asset.extractedLogoVersion}
+                            {asset.extractedLogoVersion || 'Logo v3'}
                           </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#64748B' }}>Tagline:</span>
-                          <span style={{ color: '#334155', fontWeight: 600 }}>"{asset.extractedTagline}"</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#64748B' }}>Validity Window:</span>
+                          <span style={{ color: '#64748B' }}>Validity / Date:</span>
                           <span style={{ color: asset.extractedDate?.includes('Expired') || asset.extractedDate?.includes('30 Sept') ? '#DC2626' : '#334155', fontWeight: 600 }}>
                             {asset.extractedDate || 'N/A'}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: '4px', borderTop: '1px dashed #E2E8F0' }}>
-                          <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <ImageIcon size={12} color="#15803D" />
-                            <span>Background:</span>
-                          </span>
-                          <span style={{
-                            color: (asset.backgroundStatus === 'Warning' || asset.extractedBackground?.includes('⚠️')) ? '#D97706' : '#15803D',
-                            fontWeight: 600,
-                            fontSize: '11px',
-                            textAlign: 'right',
-                            maxWidth: '72%'
-                          }}>
-                            {asset.extractedBackground || '✓ Clean Backdrop'}
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748B' }}>Tagline:</span>
+                          <span style={{ color: '#334155', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
+                            "{asset.extractedTagline}"
                           </span>
                         </div>
                       </div>
@@ -643,7 +786,7 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
                         style={{ padding: '3px 8px', fontSize: '11px' }}
                       >
                         <Eye size={12} />
-                        <span>Audit Asset</span>
+                        <span>Inspect in Auditor</span>
                       </button>
                     </div>
                   </div>
@@ -653,7 +796,7 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
           </div>
         )}
 
-        {/* View Mode 2: Unified Asset Grid View */}
+        {/* VIEW MODE 3: UNIFIED ASSET GRID VIEW */}
         {viewMode === 'grid' && (
           <AssetCardsGrid
             assets={updatedAssets}

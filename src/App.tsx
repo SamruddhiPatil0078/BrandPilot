@@ -8,6 +8,7 @@ import {
   loadBrandKnowledgeBase,
   saveBrandKnowledgeBase,
   loadCampaign,
+  loadAllCampaigns,
   saveCampaign,
   loadAuditLedger,
   resetAllStorageToDefaults
@@ -22,7 +23,8 @@ import { ShieldCheck, Cpu } from 'lucide-react';
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveModuleTab>('content-auditor');
   const [brandKB, setBrandKB] = useState<BrandKnowledgeBase>(loadBrandKnowledgeBase);
-  const [campaign, setCampaign] = useState<Campaign>(loadCampaign);
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(loadAllCampaigns);
+  const [campaign, setCampaign] = useState<Campaign>(() => loadCampaign());
   const [ledger, setLedger] = useState<AuditLedgerRecord[]>(loadAuditLedger);
   const [incomingAuditorAsset, setIncomingAuditorAsset] = useState<BatchAsset | null>(null);
 
@@ -35,12 +37,20 @@ export const App: React.FC = () => {
   const handleUpdateCampaign = (updated: Campaign) => {
     setCampaign(updated);
     saveCampaign(updated);
+    setAllCampaigns(prev => prev.map(c => (c.id === updated.id ? updated : c)));
+  };
+
+  const handleSelectCampaign = (campaignId: string) => {
+    const target = allCampaigns.find(c => c.id === campaignId) || loadCampaign(campaignId);
+    setCampaign(target);
+    saveCampaign(target);
   };
 
   const handleResetDefaults = () => {
     const defaults = resetAllStorageToDefaults();
     setBrandKB(defaults.kb);
     setCampaign(defaults.campaign);
+    setAllCampaigns(loadAllCampaigns());
     setLedger(defaults.ledger);
   };
 
@@ -107,6 +117,7 @@ export const App: React.FC = () => {
     };
     setCampaign(updatedCampaign);
     saveCampaign(updatedCampaign);
+    setAllCampaigns(prev => prev.map(c => (c.id === updatedCampaign.id ? updatedCampaign : c)));
   };
 
   const handleTabChange = (tab: ActiveModuleTab) => {
@@ -147,6 +158,8 @@ export const App: React.FC = () => {
         <div style={{ display: activeTab === 'campaign-consistency' ? 'block' : 'none' }}>
           <CampaignConsistencyView
             campaign={campaign}
+            allCampaigns={allCampaigns}
+            onSelectCampaign={handleSelectCampaign}
             kb={brandKB}
             onUpdateCampaign={handleUpdateCampaign}
             onInspectAssetInAuditor={handleInspectAssetInAuditor}
@@ -173,22 +186,14 @@ export const App: React.FC = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <ShieldCheck size={16} color="#00473E" />
-          <span>
-            <strong>BrandPilot Intelligence</strong> — Evidence-Driven Brand Governance Before Publication
-          </span>
-          <span>•</span>
-          <span>Inkloom AI Hackathon / WECODERS-48</span>
+          <span>BrandPilot Intelligence (v3.3) — Evidence-driven brand governance before publication.</span>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Cpu size={14} color="#2563EB" />
-            <span>AI Inference: Groq Cloud (llama-3.3-70b & 8b)</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span>Active Standards: ASCI & CCPA 2022 Guidelines</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16A34A', fontWeight: 600 }}>
+            <Cpu size={14} />
+            <span>Dual Hybrid Governance Engine Active</span>
           </span>
-          <span>•</span>
-          <span>OCR: Client Tesseract Engine</span>
-          <span>•</span>
-          <span>Human-in-the-Loop Governance</span>
         </div>
       </footer>
     </div>

@@ -431,6 +431,12 @@ export const INITIAL_AUDIT_LEDGER: AuditLedgerRecord[] = [
 export const INITIAL_CAMPAIGN: Campaign = {
   id: 'camp-autumn-2026',
   name: 'Aurelia Autumn Hydration Campaign',
+  category: 'Core Commercial',
+  themeColor: '#00473E',
+  approvedPrice: 1299,
+  approvedDiscountPercent: 20,
+  approvedPromoCode: 'AUTUMN20',
+  approvedCta: 'Discover your daily skincare ritual',
   code: 'AUR-AUT-26',
   status: 'Under Review',
   targetAudience: 'Skincare enthusiasts seeking barrier restoration for changing seasons',
@@ -723,6 +729,343 @@ export const INITIAL_CAMPAIGN: Campaign = {
   ]
 };
 
+
+export const DIWALI_CAMPAIGN: Campaign = {
+  id: 'camp-diwali-2026',
+  name: 'Aurelia Festive Diwali Glow Campaign',
+  code: 'AUR-DIW-26',
+  category: 'Festive',
+  themeColor: '#C89B3C',
+  status: 'Under Review',
+  targetAudience: 'Festive gifting, wedding season & radiant holiday skincare shoppers',
+  startDate: '2026-10-20',
+  endDate: '2026-11-10',
+  campaignGoal: 'Promote Radiant Vitamin C Festive Pack with synchronized 25% discount and code DIWALI25 across digital and print touchpoints.',
+  approvedPrice: 1599,
+  approvedDiscountPercent: 25,
+  approvedPromoCode: 'DIWALI25',
+  approvedCta: 'Shop Festive Glow',
+  lastRecheckedAt: '2026-10-28T10:00:00Z',
+  brandVersionSynced: 'v3.2',
+  assets: [
+    {
+      id: 'asset-diw-ig-1',
+      title: 'Instagram Festive Reel Ad',
+      channel: 'Instagram',
+      format: 'Image',
+      teamName: 'Team Creative Pulse',
+      previewUrl: '/assets/test-vitamin-c-ad.jpg',
+      uploadedAt: '2026-10-26T14:30:00Z',
+      extractedPrice: 1399,
+      extractedPriceStr: '₹1,399',
+      extractedDiscountPercent: 35,
+      extractedPromoCode: 'DIWALI35',
+      extractedDate: 'Valid till 15 Nov 2026',
+      extractedTagline: 'Miracle Festive Glow in 24 Hours',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
+      extractedDisclaimer: 'Missing mandatory disclaimer',
+      extractedTone: 'Hype / FOMO',
+      extractedCta: 'Claim 35% Off Now',
+      extractedBackground: '✓ Warm festive golden studio surface with diya sparkle',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Light up your skin this Diwali! Special 35% OFF with code DIWALI35. Just ₹1,399! Miracle Festive Glow in 24 Hours. Valid till 15 Nov 2026. Claim 35% Off Now.",
+      status: 'Conflicts Detected',
+      conflictCount: 4
+    },
+    {
+      id: 'asset-diw-web-1',
+      title: 'E-commerce Festive Showcase Banner',
+      channel: 'Website',
+      format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
+      previewUrl: 'compliant-preview',
+      uploadedAt: '2026-10-26T16:00:00Z',
+      extractedPrice: 1599,
+      extractedPriceStr: '₹1,599',
+      extractedDiscountPercent: 25,
+      extractedPromoCode: 'DIWALI25',
+      extractedDate: 'Valid till 10 Nov 2026',
+      extractedTagline: 'Celebrate Your Natural Radiance.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks. Prices inclusive of all taxes.',
+      extractedTone: 'Calm / Festive Luxury',
+      extractedCta: 'Shop Festive Glow',
+      extractedBackground: '✓ Pearl cream neutral e-commerce hero card with festive gold border',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Celebrate Your Natural Radiance. Aurelia Festive Radiance Duo (₹1,599). Enjoy 25% off with code DIWALI25 through 10 Nov 2026. *Based on clinical trial of 30 women over 4 weeks. Prices inclusive of all taxes.",
+      status: 'In Sync',
+      conflictCount: 0
+    },
+    {
+      id: 'asset-diw-wa-1',
+      title: 'VIP Customer WhatsApp Broadcast',
+      channel: 'WhatsApp',
+      format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
+      previewUrl: 'sms-preview',
+      uploadedAt: '2026-10-27T09:15:00Z',
+      extractedPrice: 1599,
+      extractedPriceStr: '₹1,599',
+      extractedDiscountPercent: 20,
+      extractedPromoCode: 'DIWALI20',
+      extractedDate: 'Valid till 10 Nov 2026',
+      extractedTagline: 'Celebrate Your Natural Radiance.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedDisclaimer: 'Missing clinical footnote',
+      extractedTone: 'Direct / Warm',
+      extractedCta: 'Order on WhatsApp',
+      extractedBackground: '✓ Text messaging preview format',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Exclusive Diwali Offer: Celebrate Your Natural Radiance! Use code DIWALI20 for 20% off festive gift boxes at ₹1,599. Valid till 10 Nov 2026. Order on WhatsApp.",
+      status: 'Conflicts Detected',
+      conflictCount: 2
+    },
+    {
+      id: 'asset-diw-print-1',
+      title: 'Luxury Retail Counter Standee',
+      channel: 'Print Brochure',
+      format: 'Image',
+      teamName: 'Team Metro Print & Retail',
+      previewUrl: '/assets/aurelia-pamphlet-ad.png',
+      uploadedAt: '2026-10-27T11:45:00Z',
+      extractedPrice: 1599,
+      extractedPriceStr: '₹1,599',
+      extractedDiscountPercent: 25,
+      extractedPromoCode: 'DIWALI25',
+      extractedDate: 'Valid till 31 Oct 2026',
+      extractedTagline: 'Pure care, real results.',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
+      extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks.',
+      extractedTone: 'Clinical / Luxury',
+      extractedCta: 'Visit Clinic Counter',
+      extractedBackground: '✓ Pearl cream clinic display with gold leaf inlay',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Aurelia Diwali Gold Collection. Pure care, real results. Standard festive price ₹1,599. 25% OFF with code DIWALI25. Valid till 31 Oct 2026. *Based on clinical trial of 30 women over 4 weeks.",
+      status: 'Conflicts Detected',
+      conflictCount: 2
+    }
+  ],
+  conflicts: []
+};
+
+export const BLOOD_DONATION_CAMPAIGN: Campaign = {
+  id: 'camp-blood-donation-2026',
+  name: 'Aurelia CSR Blood Donation & Community Wellness Drive',
+  code: 'AUR-CSR-BD26',
+  category: 'CSR & Public Health',
+  themeColor: '#DC2626',
+  status: 'Under Review',
+  targetAudience: 'University campus, clinical staff, patients, and local community volunteers',
+  startDate: '2026-11-01',
+  endDate: '2026-11-15',
+  campaignGoal: 'Mobilize community blood donations for World Diabetes & Health Week under National Blood Transfusion Council (NBTC) ethical guidelines.',
+  approvedVenue: 'Aurelia Health Center, City Campus, Pune',
+  approvedDate: '14 November 2026',
+  approvedCta: 'Register as Donor',
+  approvedPrice: 0,
+  lastRecheckedAt: '2026-10-29T11:20:00Z',
+  brandVersionSynced: 'v3.2',
+  assets: [
+    {
+      id: 'asset-bd-ig-1',
+      title: 'Instagram Community Outreach Post',
+      channel: 'Instagram',
+      format: 'Image',
+      teamName: 'Team Creative Pulse',
+      previewUrl: '/assets/aurelia-pamphlet-ad.png',
+      uploadedAt: '2026-10-27T10:00:00Z',
+      extractedVenue: 'Aurelia Health Center, City Campus, Pune',
+      extractedDate: '14 November 2026',
+      extractedTagline: 'Aurelia Community Health Initiative',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedCta: 'Get Free ₹500 Voucher',
+      extractedDisclaimer: 'Missing mandatory NBTC statutory disclaimer',
+      extractedTone: 'Promotional / Commercial Incentive',
+      extractedBackground: '✓ Clinical sterile health center backdrop with red heart medical motif',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Join Aurelia Care! Blood Donation Drive on 14 November 2026 at Aurelia Health Center. Special perk: Free ₹500 Skincare Gift Vouchers for every blood donor! Register today.",
+      status: 'Conflicts Detected',
+      conflictCount: 2
+    },
+    {
+      id: 'asset-bd-print-1',
+      title: 'Campus Health Center Roll-Up Standee',
+      channel: 'Print Brochure',
+      format: 'Image',
+      teamName: 'Team Metro Print & Retail',
+      previewUrl: '/assets/aurelia-pamphlet-ad.png',
+      uploadedAt: '2026-10-27T14:15:00Z',
+      extractedVenue: 'City Hospital Ward B',
+      extractedDate: '12 November 2026',
+      extractedTagline: 'Aurelia Community Health Initiative',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
+      extractedCta: 'Walk-In Registration',
+      extractedDisclaimer: '*Voluntary non-remunerated blood donation organized under NBTC ethical guidelines.',
+      extractedTone: 'Clinical / Informative',
+      extractedBackground: '✓ Clean sterile clinic glass tray & marble counter',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Annual Blood Donation Drive. Event Date: 12 November 2026 at City Hospital Ward B. Logo v2 vintage crest. *Voluntary non-remunerated blood donation organized under NBTC ethical guidelines.",
+      status: 'Conflicts Detected',
+      conflictCount: 2
+    },
+    {
+      id: 'asset-bd-email-1',
+      title: 'Corporate Employee & Partner Email Broadcast',
+      channel: 'Email',
+      format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
+      previewUrl: 'email-blast',
+      uploadedAt: '2026-10-28T09:00:00Z',
+      extractedVenue: 'Aurelia Health Center, City Campus, Pune',
+      extractedDate: '14 November 2026 (9:00 AM – 5:00 PM)',
+      extractedTagline: 'Aurelia Community Care & Wellness.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedCta: 'Register as Donor',
+      extractedDisclaimer: '*Voluntary non-remunerated blood donation conducted in strict partnership with Armed Forces Transfusion Centre under NBTC guidelines. Zero commercial compensation provided.',
+      extractedTone: 'Calm / Compassionate / Official',
+      extractedBackground: '✓ Pearl cream neutral email card layout',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Dear Colleagues and Community Members, Join us for the Aurelia Annual Blood Donation Drive on 14 November 2026 at Aurelia Health Center, City Campus, Pune (9 AM - 5 PM). Register as Donor online. *Voluntary non-remunerated blood donation conducted in strict partnership with Armed Forces Transfusion Centre under NBTC guidelines. Zero commercial compensation provided.",
+      status: 'In Sync',
+      conflictCount: 0
+    },
+    {
+      id: 'asset-bd-li-1',
+      title: 'LinkedIn CSR Partnership Update',
+      channel: 'LinkedIn',
+      format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
+      previewUrl: 'compliant-preview',
+      uploadedAt: '2026-10-28T11:30:00Z',
+      extractedVenue: 'Aurelia Health Center, City Campus, Pune',
+      extractedDate: '14 November 2026',
+      extractedTagline: 'Aurelia Community Care & Wellness.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedCta: 'Register as Donor',
+      extractedDisclaimer: 'Missing mandatory NBTC statutory disclaimer',
+      extractedTone: 'Corporate / Civic',
+      extractedBackground: '✓ Professional LinkedIn corporate post card',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Proud to announce our upcoming Community Blood Donation Camp on 14 November 2026 at our Pune City Campus. Building healthier communities together. Register as Donor today.",
+      status: 'Conflicts Detected',
+      conflictCount: 1
+    }
+  ],
+  conflicts: []
+};
+
+export const CHRISTMAS_CAMPAIGN: Campaign = {
+  id: 'camp-christmas-2026',
+  name: 'Christmas & Winter Barrier Revival Campaign',
+  code: 'AUR-WIN-26',
+  category: 'Winter / Seasonal',
+  themeColor: '#0284C7',
+  status: 'Under Review',
+  targetAudience: 'Cold weather skincare, winter dryness relief & Christmas holiday gift buyers',
+  startDate: '2026-12-01',
+  endDate: '2027-01-05',
+  campaignGoal: 'Winter cellular barrier restoration promo with 15% discount code WINTERFEST through 05 Jan 2027.',
+  approvedPrice: 1999,
+  approvedDiscountPercent: 15,
+  approvedPromoCode: 'WINTERFEST',
+  approvedCta: 'Explore Winter Ritual',
+  lastRecheckedAt: '2026-10-29T15:00:00Z',
+  brandVersionSynced: 'v3.2',
+  assets: [
+    {
+      id: 'asset-xmas-ig-1',
+      title: 'Instagram Winter Barrier Story Ad',
+      channel: 'Instagram',
+      format: 'Image',
+      teamName: 'Team Creative Pulse',
+      previewUrl: '/assets/test-vitamin-c-ad.jpg',
+      uploadedAt: '2026-10-28T16:00:00Z',
+      extractedPrice: 1099,
+      extractedPriceStr: '₹1,099',
+      extractedDiscountPercent: 30,
+      extractedPromoCode: 'XMAS30',
+      extractedDate: 'Valid till 25 Dec 2026',
+      extractedTagline: '100% cure for winter eczema in 24 hours!',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
+      extractedDisclaimer: 'Missing mandatory disclaimer',
+      extractedTone: 'Hype / Miracle Promise',
+      extractedCta: 'Buy Now 30% Off',
+      extractedBackground: '✓ Pearl Cream studio surface with subtle winter frost crystals',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Winter frost is here! 100% cure for winter eczema in 24 hours! Just ₹1,099 with code XMAS30 (30% OFF). Valid till 25 Dec 2026. Buy Now 30% Off.",
+      status: 'Conflicts Detected',
+      conflictCount: 4
+    },
+    {
+      id: 'asset-xmas-web-1',
+      title: 'Winter Barrier Collection Web Hero',
+      channel: 'Website',
+      format: 'Copy',
+      teamName: 'Team Growth & CRM Pod',
+      previewUrl: 'compliant-preview',
+      uploadedAt: '2026-10-28T17:30:00Z',
+      extractedPrice: 1999,
+      extractedPriceStr: '₹1,999',
+      extractedDiscountPercent: 15,
+      extractedPromoCode: 'WINTERFEST',
+      extractedDate: 'Valid through 05 Jan 2027',
+      extractedTagline: 'Deep Winter Barrier Protection.',
+      extractedLogoVersion: 'Logo v3 (Approved)',
+      extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks in dry climate. MRP inclusive of all taxes.',
+      extractedTone: 'Calm / Protective',
+      extractedCta: 'Explore Winter Ritual',
+      extractedBackground: '✓ Pearl cream neutral e-commerce hero card with winter pine aesthetic',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Deep Winter Barrier Protection. Aurelia Winter Barrier Duo Pack (₹1,999). Enjoy 15% off with code WINTERFEST through 05 Jan 2027. *Based on clinical trial of 30 women over 4 weeks in dry climate. MRP inclusive of all taxes.",
+      status: 'In Sync',
+      conflictCount: 0
+    },
+    {
+      id: 'asset-xmas-print-1',
+      title: 'Winter Holiday Clinic Gift Guide',
+      channel: 'Print Brochure',
+      format: 'PDF',
+      teamName: 'Team Metro Print & Retail',
+      previewUrl: 'clinic-brochure',
+      uploadedAt: '2026-10-29T10:15:00Z',
+      extractedPrice: 1999,
+      extractedPriceStr: '₹1,999',
+      extractedDiscountPercent: 15,
+      extractedPromoCode: 'WINTERFEST',
+      extractedDate: 'Valid till 31 Dec 2026',
+      extractedTagline: 'Deep Winter Barrier Protection.',
+      extractedLogoVersion: 'Logo v2.1 (Vintage Crest)',
+      extractedDisclaimer: '*Based on clinical trial of 30 women over 4 weeks in dry climate.',
+      extractedTone: 'Clinical / Festive Care',
+      extractedCta: 'Visit Clinic Counter',
+      extractedBackground: '✓ Clean sterile clinic glass tray & holiday spruce display',
+      backgroundStatus: 'Clean',
+      backgroundFindings: [],
+      fullText: "Holiday Skincare Gifting. Deep Winter Barrier Protection. Winter Duo at ₹1,999 with code WINTERFEST (15% OFF). Valid till 31 Dec 2026. Note: features Logo v2 vintage floral crest.",
+      status: 'Conflicts Detected',
+      conflictCount: 2
+    }
+  ],
+  conflicts: []
+};
+
+export const PRESET_CAMPAIGNS: Campaign[] = [
+  INITIAL_CAMPAIGN,
+  DIWALI_CAMPAIGN,
+  BLOOD_DONATION_CAMPAIGN,
+  CHRISTMAS_CAMPAIGN
+];
+
 // Storage Helpers
 export function loadBrandKnowledgeBase(): BrandKnowledgeBase {
   try {
@@ -779,14 +1122,43 @@ export function saveAuditLedgerRecord(record: AuditLedgerRecord): void {
   }
 }
 
-export function loadCampaign(): Campaign {
+const STORAGE_KEY_CAMPAIGN_LIST = 'brandpilot_campaign_list_v2';
+const STORAGE_KEY_ACTIVE_CAMPAIGN_ID = 'brandpilot_active_campaign_id_v2';
+
+export function loadAllCampaigns(): Campaign[] {
   try {
+    const raw = localStorage.getItem(STORAGE_KEY_CAMPAIGN_LIST);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) {
+        return list;
+      }
+    }
+  } catch (e) {
+    console.error('Error loading campaign list:', e);
+  }
+  return PRESET_CAMPAIGNS;
+}
+
+export function saveAllCampaigns(campaigns: Campaign[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_CAMPAIGN_LIST, JSON.stringify(campaigns));
+  } catch (e) {
+    console.error('Error saving campaign list:', e);
+  }
+}
+
+export function loadCampaign(targetId?: string): Campaign {
+  try {
+    const all = loadAllCampaigns();
+    const activeId = targetId || localStorage.getItem(STORAGE_KEY_ACTIVE_CAMPAIGN_ID) || all[0].id;
+    const found = all.find(c => c.id === activeId);
+    if (found) return found;
+
     const raw = localStorage.getItem(STORAGE_KEY_CAMPAIGNS);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.assets && parsed.assets.length > 0 && parsed.assets[0].teamName) {
-        return parsed;
-      }
+      if (parsed.assets && parsed.assets.length > 0) return parsed;
     }
   } catch (e) {
     console.error('Error loading Campaign:', e);
@@ -797,6 +1169,15 @@ export function loadCampaign(): Campaign {
 export function saveCampaign(campaign: Campaign): void {
   try {
     localStorage.setItem(STORAGE_KEY_CAMPAIGNS, JSON.stringify(campaign));
+    localStorage.setItem(STORAGE_KEY_ACTIVE_CAMPAIGN_ID, campaign.id);
+    const all = loadAllCampaigns();
+    const idx = all.findIndex(c => c.id === campaign.id);
+    if (idx >= 0) {
+      all[idx] = campaign;
+    } else {
+      all.push(campaign);
+    }
+    saveAllCampaigns(all);
   } catch (e) {
     console.error('Error saving Campaign:', e);
   }
