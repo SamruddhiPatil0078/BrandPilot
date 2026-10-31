@@ -211,7 +211,7 @@ describe('Task 1 — Backend Proxy Request Validation & Health', () => {
   test('GET /api/health returns server status without exposing secrets', async () => {
     const { server } = await import('../server/index');
     serverInstance = server;
-    const res = await fetch('http://localhost:3001/api/health');
+    const res = await fetch('http://localhost:3001/api/health', { headers: { Connection: 'close' } });
     assert.equal(res.status, 200);
     const data = await res.json() as { status: string; groqConfigured: boolean };
     assert.equal(data.status, 'ok');
@@ -222,7 +222,7 @@ describe('Task 1 — Backend Proxy Request Validation & Health', () => {
   test('POST /api/groq/chat rejects empty messages array with 400', async () => {
     const res = await fetch('http://localhost:3001/api/groq/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Connection': 'close' },
       body: JSON.stringify({ messages: [] })
     });
     assert.equal(res.status, 400);
@@ -233,7 +233,7 @@ describe('Task 1 — Backend Proxy Request Validation & Health', () => {
   test('POST /api/groq/chat rejects invalid role with 400', async () => {
     const res = await fetch('http://localhost:3001/api/groq/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Connection': 'close' },
       body: JSON.stringify({
         messages: [{ role: 'hacker', content: 'test' }]
       })
@@ -246,7 +246,7 @@ describe('Task 1 — Backend Proxy Request Validation & Health', () => {
   test('POST /api/groq/chat rejects message content exceeding 25,000 characters with 400', async () => {
     const res = await fetch('http://localhost:3001/api/groq/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Connection': 'close' },
       body: JSON.stringify({
         messages: [{ role: 'user', content: 'A'.repeat(26000) }]
       })
@@ -256,7 +256,12 @@ describe('Task 1 — Backend Proxy Request Validation & Health', () => {
     assert.ok(data.error.includes('up to 25,000 characters'));
 
     if (serverInstance) {
-      serverInstance.close();
+      if (typeof serverInstance.closeAllConnections === 'function') {
+        serverInstance.closeAllConnections();
+      }
+      await new Promise<void>((resolve) => {
+        serverInstance.close(() => resolve());
+      });
     }
   });
 });

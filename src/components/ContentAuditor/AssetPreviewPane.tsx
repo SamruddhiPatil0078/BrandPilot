@@ -82,20 +82,121 @@ const FindingBox: React.FC<{
 }> = ({ finding, left, top, width, height, isSelected, onSelect }) => {
   const isResolved = finding.decision === 'ACCEPTED';
   const borderColor = isResolved ? '#16A34A' : isSelected ? '#2563EB' : finding.severity === 'HIGH' ? '#DC2626' : '#D97706';
-  const bgColor = isResolved ? 'rgba(22,163,74,0.12)' : isSelected ? 'rgba(37,99,235,0.10)' : finding.severity === 'HIGH' ? 'rgba(220,38,38,0.10)' : 'rgba(217,119,6,0.10)';
+  const bgColor = isResolved ? 'rgba(22,163,74,0.12)' : isSelected ? 'rgba(37,99,235,0.14)' : finding.severity === 'HIGH' ? 'rgba(220,38,38,0.12)' : 'rgba(217,119,6,0.12)';
+
+  // Smart positioning for small fine-print text & edge boundaries
+  const isLogo = finding.ruleType === 'Logo';
+  const isSmallBox = height < 3.8 || width < 8;
+  const isNearBottom = top > 86;
+  const isNearTop = top < 4;
+  const isNearLeft = left < 4;
+
+  const pinTop = isNearTop ? '2px' : isSmallBox ? '-14px' : '-8px';
+  const pinLeft = isNearLeft ? '0px' : '-8px';
 
   return (
     <div
-      style={{ position: 'absolute', top: `${top}%`, left: `${left}%`, width: `${width}%`, height: `${height}%`, border: `2px ${isResolved ? 'solid' : isSelected ? 'solid' : 'dashed'} ${borderColor}`, borderRadius: '4px', backgroundColor: bgColor, cursor: 'pointer', pointerEvents: 'auto', transition: 'border 0.2s ease, box-shadow 0.2s ease', zIndex: isSelected ? 35 : 20, boxShadow: isSelected ? `0 0 0 2px ${borderColor}, 0 4px 16px rgba(0,0,0,0.25)` : '0 1px 4px rgba(0,0,0,0.1)' }}
-      onClick={() => onSelect(finding.id)}
+      style={{
+        position: 'absolute',
+        top: `${top}%`,
+        left: `${left}%`,
+        width: `${width}%`,
+        height: `${height}%`,
+        minHeight: '14px',
+        minWidth: '22px',
+        border: `2px ${isResolved ? 'solid' : isSelected ? 'solid' : 'dashed'} ${borderColor}`,
+        borderRadius: isLogo ? '50%' : '6px',
+        backgroundColor: bgColor,
+        cursor: 'pointer',
+        pointerEvents: 'auto',
+        transition: 'all 0.2s ease',
+        zIndex: isSelected ? 40 : 20,
+        boxShadow: isSelected
+          ? `0 0 0 3px rgba(37,99,235,0.35), 0 4px 16px rgba(0,0,0,0.25)`
+          : '0 1px 4px rgba(0,0,0,0.12)'
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(finding.id);
+      }}
       title={`Pin ${finding.pinNumber} (${finding.ruleType}): ${finding.title}`}
     >
-      <div style={{ position: 'absolute', top: '-10px', left: '-10px', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: borderColor, color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 900, border: '2px solid #FFFFFF', boxShadow: '0 2px 6px rgba(0,0,0,0.3)', zIndex: 40 }}>
+      {/* Corner polygon reticle indicator for precision alignment */}
+      {!isLogo && (
+        <>
+          <span
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '5px',
+              height: '5px',
+              borderTop: `2px solid ${borderColor}`,
+              borderLeft: `2px solid ${borderColor}`,
+              pointerEvents: 'none'
+            }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              width: '5px',
+              height: '5px',
+              borderBottom: `2px solid ${borderColor}`,
+              borderRight: `2px solid ${borderColor}`,
+              pointerEvents: 'none'
+            }}
+          />
+        </>
+      )}
+      {/* Numbered pin badge with smart non-obscuring anchor */}
+      <div
+        style={{
+          position: 'absolute',
+          top: pinTop,
+          left: pinLeft,
+          width: isSmallBox ? '18px' : '20px',
+          height: isSmallBox ? '18px' : '20px',
+          borderRadius: '50%',
+          backgroundColor: borderColor,
+          color: '#FFFFFF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: isSmallBox ? '10px' : '11px',
+          fontWeight: 900,
+          border: '2px solid #FFFFFF',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.35)',
+          zIndex: 45
+        }}
+      >
         {isResolved ? <Check size={11} strokeWidth={3} /> : finding.pinNumber}
       </div>
+
+      {/* Floating tooltip with boundary auto-flip */}
       {isSelected && (
-        <div style={{ position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)', backgroundColor: borderColor, color: '#FFFFFF', padding: '2px 8px', borderRadius: '8px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', zIndex: 40 }}>
-          {isResolved ? '✓ Resolved' : `${finding.ruleType}: ${finding.flaggedText.slice(0, 30)}${finding.flaggedText.length > 30 ? '…' : ''}`}
+        <div
+          style={{
+            position: 'absolute',
+            ...(isNearBottom ? { top: '-26px' } : { bottom: '-24px' }),
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: borderColor,
+            color: '#FFFFFF',
+            padding: '2px 8px',
+            borderRadius: '6px',
+            fontSize: '10px',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            zIndex: 50,
+            pointerEvents: 'none'
+          }}
+        >
+          {isResolved
+            ? '✓ Resolved'
+            : `${finding.ruleType}: ${finding.flaggedText.slice(0, 32)}${finding.flaggedText.length > 32 ? '…' : ''}`}
         </div>
       )}
     </div>
