@@ -135,7 +135,7 @@ SPECIAL OFFER: ₹749 ONLY!
         instagramAccount: 'aurelia.skincare',
         instagramCaption: 'Glow brighter every day with Vitamin C Glow Serum. ☀️ Limited time offer — grab yours now!',
         instagramHashtags: ['#VitaminC', '#GlowSerum', '#AureliaSkincare', '#SkincareRoutine'],
-        detectedLogoTag: 'v2-vintage',
+        detectedLogoTag: 'v3-approved',
         backgroundDescription: 'Minimalist laboratory glassware stand with golden botanical droplet',
         expectedStatus: 'Violation'
       },

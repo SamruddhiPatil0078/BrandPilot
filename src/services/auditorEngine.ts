@@ -1023,14 +1023,31 @@ export async function runContentAudit(
     let bounds: { x: number; y: number; width: number; height: number } | undefined = undefined;
 
     if (ocrWords && ocrWords.length > 0 && imageWidth > 0 && imageHeight > 0) {
+      // Find words in the vintage crest badge quadrant (x >= 70%, 4% <= y <= 22%)
       const crestWords = ocrWords.filter(
         w =>
           w.bbox &&
-          w.bbox.x0 >= imageWidth * 0.65 &&
-          w.bbox.y1 <= imageHeight * 0.35 &&
-          w.bbox.x1 <= imageWidth * 1.05
+          w.bbox.x0 >= imageWidth * 0.70 &&
+          w.bbox.y0 >= imageHeight * 0.04 &&
+          w.bbox.y1 <= imageHeight * 0.22 &&
+          w.bbox.x1 <= imageWidth * 1.02
       );
-      if (crestWords.length >= 2) {
+      // Strictly verify that the detected words actually contain authentic crest text
+      // (prevents hallucinating a logo circle on background leaves, bokeh, or floral graphics)
+      const hasCrestText = crestWords.some(w => {
+        const t = w.text.toLowerCase();
+        return (
+          t.includes('aurelia') ||
+          t.includes('skin') ||
+          t.includes('since') ||
+          t.includes('2018') ||
+          t.includes('natural') ||
+          t.includes('beauty') ||
+          t.includes('crest')
+        );
+      });
+
+      if (hasCrestText && crestWords.length >= 2) {
         const x0 = Math.min(...crestWords.map(w => w.bbox!.x0));
         const y0 = Math.min(...crestWords.map(w => w.bbox!.y0));
         const x1 = Math.max(...crestWords.map(w => w.bbox!.x1));
@@ -1039,13 +1056,15 @@ export async function runContentAudit(
         const rawY = (y0 / imageHeight) * 100;
         const rawW = ((x1 - x0) / imageWidth) * 100;
         const rawH = ((y1 - y0) / imageHeight) * 100;
-        // Make the crest box neatly wrap the circular gold seal with balanced padding
-        const maxDim = Math.max(rawW, rawH) + 3;
+        const maxDim = Math.max(rawW, rawH * (imageHeight / imageWidth));
+        const sizePct = Math.min(24, Math.max(18, maxDim + 2));
+        const centerX = rawX + rawW / 2;
+        const centerY = rawY + rawH / 2;
         bounds = {
-          x: Math.max(0, rawX - 1.5),
-          y: Math.max(0, rawY - 1.5),
-          width: Math.min(100 - rawX, maxDim),
-          height: Math.min(100 - rawY, maxDim),
+          x: Math.max(0, centerX - sizePct / 2),
+          y: Math.max(0, centerY - (sizePct * (imageWidth / imageHeight)) / 2),
+          width: sizePct,
+          height: sizePct * (imageWidth / imageHeight),
         };
       }
     }

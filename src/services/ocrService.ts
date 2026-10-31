@@ -86,10 +86,8 @@ async function preprocessImageForOcr(
         const maxDimension = Math.max(originalWidth, originalHeight);
 
         // Upscale small images, but avoid unnecessarily large canvases.
-        const scale =
-          maxDimension < 1000
-            ? Math.min(2, 1400 / maxDimension)
-            : 1;
+        // Upscale images so small badges, fine print, and disclaimers have >= 25px glyph height
+        const scale = maxDimension < 2000 ? Math.min(2.5, 2400 / maxDimension) : 1;
 
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(originalWidth * scale);
@@ -103,6 +101,8 @@ async function preprocessImageForOcr(
           return;
         }
 
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
         const imageData = context.getImageData(
@@ -207,6 +207,10 @@ export async function performOcr(
     worker = await createWorker('eng', 1, {
       langPath: '/tesseract',
       gzip: false
+    });
+
+    await worker.setParameters({
+      user_defined_dpi: '300'
     });
 
     onProgress?.(50, 'Recognizing text...');

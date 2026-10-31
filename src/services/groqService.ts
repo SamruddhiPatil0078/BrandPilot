@@ -6,8 +6,8 @@
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const BACKEND_CHAT_ENDPOINT = API_BASE + '/api/groq/chat';
 const BACKEND_HEALTH_ENDPOINT = API_BASE + '/api/groq/health';
-export const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
-export const FAST_MODEL = 'llama-3.1-8b-instant';
+export const DEFAULT_MODEL = 'openai/gpt-oss-120b';
+export const FAST_MODEL = 'qwen/qwen3.8-27b';
 
 export interface GroqChatMessage {
   role: 'system' | 'user' | 'assistant';

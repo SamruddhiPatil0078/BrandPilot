@@ -314,6 +314,21 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
           activeOcrResult = ocrRes;
           setCurrentOcrResult(ocrRes);
           setSelectedAsset(prev => ({ ...prev, ocrResult: ocrRes }));
+
+          // Reconstruct noisy OCR text with Groq AI to recover all claims, headlines, prices & disclaimers
+          if (ocrRes.text) {
+            setAuditProgress({ percent: 62, status: 'Reconstructing copy with Groq AI...' });
+            try {
+              const enhancedText = await cleanOcrTextWithGroq(ocrRes.text);
+              if (enhancedText && enhancedText.trim().length > 10) {
+                textToAudit = enhancedText;
+                setDraftText(enhancedText);
+                setSelectedAsset(prev => ({ ...prev, draftText: enhancedText }));
+              }
+            } catch (groqErr) {
+              console.warn('Groq text enhancement skipped:', groqErr);
+            }
+          }
         }
       } catch (ocrErr) {
         console.warn('OCR on previewUrl failed:', ocrErr);
