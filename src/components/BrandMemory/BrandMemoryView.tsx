@@ -7,6 +7,7 @@ import {
   History,
   AlertCircle,
   ArrowRight,
+  FileCheck2,
   Image as ImageIcon
 } from 'lucide-react';
 import { BrandKnowledgeBase } from '../../types/brand';
@@ -16,6 +17,7 @@ import { ClaimsManager } from './ClaimsManager';
 import { TerminologyManager } from './TerminologyManager';
 import { BackgroundSceneManager } from './BackgroundSceneManager';
 import { VersionHistoryModal } from './VersionHistoryModal';
+import { PdfImportModal } from './PdfImportModal';
 import { rollbackBrandKnowledgeBase } from '../../services/storageService';
 
 interface BrandMemoryViewProps {
@@ -33,6 +35,7 @@ export const BrandMemoryView: React.FC<BrandMemoryViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'guidelines' | 'products' | 'claims' | 'terminology' | 'background'>('guidelines');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
   const handleFactChanged = (summary: string) => {
@@ -109,6 +112,22 @@ export const BrandMemoryView: React.FC<BrandMemoryViewProps> = ({
               </div>
             </div>
 
+            <button
+              className="btn btn-brand btn-sm"
+              onClick={() => setShowPdfModal(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#7C3AED',
+                borderColor: '#7C3AED',
+                color: '#FFFFFF',
+                fontWeight: 700
+              }}
+            >
+              <FileCheck2 size={14} />
+              <span>Import Brand Guide (PDF)</span>
+            </button>
             <button className="btn btn-secondary btn-sm" onClick={() => setShowHistoryModal(true)}>
               <History size={14} />
               <span>Version History ({kb.versionHistory.length})</span>
@@ -223,6 +242,19 @@ export const BrandMemoryView: React.FC<BrandMemoryViewProps> = ({
 
       {activeTab === 'background' && (
         <BackgroundSceneManager kb={kb} onUpdateKb={onUpdateKb} />
+      )}
+
+      {/* PDF Import Modal */}
+      {showPdfModal && (
+        <PdfImportModal
+          isOpen={showPdfModal}
+          onClose={() => setShowPdfModal(false)}
+          existingKb={kb}
+          onApplyNewKb={(updated, summary) => {
+            onUpdateKb(updated);
+            handleFactChanged(summary);
+          }}
+        />
       )}
 
       {/* Version History Modal */}

@@ -11,8 +11,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+<<<<<<< HEAD
 const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 const FALLBACK_MODEL = 'qwen/qwen3.8-27b';
+=======
+const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+const FALLBACK_MODEL = 'llama-3.3-70b-versatile';
+>>>>>>> upstream/feature/brandpilot-enhancements
 
 // Basic in-memory rate limiter: max 60 requests per windowMs per IP
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
