@@ -3,11 +3,11 @@
  * Connects directly to Groq API for real-time LLM inference without hardcoded responses.
  */
 
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL ? import.meta.env.VITE_API_URL : '').replace(/\/$/, '');
 const BACKEND_CHAT_ENDPOINT = API_BASE + '/api/groq/chat';
 const BACKEND_HEALTH_ENDPOINT = API_BASE + '/api/groq/health';
 export const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
-export const FAST_MODEL = 'llama-3.1-8b-instant';
+export const FAST_MODEL = 'llama-3.3-70b-versatile';
 
 export interface GroqChatMessage {
   role: 'system' | 'user' | 'assistant';

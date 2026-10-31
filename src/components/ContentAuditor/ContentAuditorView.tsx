@@ -13,6 +13,8 @@ import { performOcr, OcrResult } from '../../services/ocrService';
 import { extractTextFromPdf } from '../../services/pdfService';
 import { cleanOcrTextWithGroq } from '../../services/groqService';
 import { saveAuditLedgerRecord } from '../../services/storageService';
+import { BrandPaletteScanner } from './BrandPaletteScanner';
+import { PaletteAnalysisResult, analyzeImagePaletteFromUrl } from '../../services/colorAnalysisService';
 import { MailCheck, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react';
 
 interface ContentAuditorViewProps {
@@ -175,6 +177,33 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isGroqReportModalOpen, setIsGroqReportModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Feature 2: In-Browser Brand Palette & Visual Identity Scanner
+  const [paletteAnalysis, setPaletteAnalysis] = useState<PaletteAnalysisResult | null>(null);
+  const [isPaletteAnalyzing, setIsPaletteAnalyzing] = useState(false);
+
+  useEffect(() => {
+    if (selectedAsset.type === 'image' && selectedAsset.previewUrl) {
+      let isCurrent = true;
+      setIsPaletteAnalyzing(true);
+      analyzeImagePaletteFromUrl(selectedAsset.previewUrl, kb.colors)
+        .then(result => {
+          if (isCurrent) {
+            setPaletteAnalysis(result);
+            setIsPaletteAnalyzing(false);
+          }
+        })
+        .catch(() => {
+          if (isCurrent) setIsPaletteAnalyzing(false);
+        });
+      return () => {
+        isCurrent = false;
+      };
+    } else {
+      setPaletteAnalysis(null);
+      setIsPaletteAnalyzing(false);
+    }
+  }, [selectedAsset.previewUrl, selectedAsset.type, kb.colors]);
 
   // Track previous incomingAsset and selection to synchronize state without cascading effects
   const [prevIncomingAsset, setPrevIncomingAsset] = useState<BatchAsset | null>(null);
@@ -905,6 +934,14 @@ export const ContentAuditorView: React.FC<ContentAuditorViewProps> = ({
             instagramAccount={selectedAsset.instagramAccount}
             onFileUpload={handleFileUpload}
           />
+
+          {selectedAsset.type === 'image' && (
+            <BrandPaletteScanner
+              paletteResult={paletteAnalysis}
+              brandColors={kb.colors}
+              isAnalyzing={isPaletteAnalyzing}
+            />
+          )}
         </div>
 
         {/* Pane 3: Review Issues & Evidence Table */}

@@ -32,6 +32,7 @@ import { AssetCardsGrid } from './AssetCardsGrid';
 import { AddAssetModal } from './AddAssetModal';
 import { CrossAssetConflictMatrix } from './CrossAssetConflictMatrix';
 import { SideBySideComparator } from './SideBySideComparator';
+import { ReadinessScoreCard } from './ReadinessScoreCard';
 
 interface CampaignConsistencyViewProps {
   campaign: Campaign;
@@ -276,6 +277,13 @@ export const CampaignConsistencyView: React.FC<CampaignConsistencyViewProps> = (
           })}
         </div>
       </div>
+
+      {/* CAMPAIGN LAUNCH READINESS SCORE */}
+      <ReadinessScoreCard
+        campaign={campaign}
+        kb={kb}
+        onInspectAsset={onInspectAssetInAuditor}
+      />
 
       {/* SECTION 1: ADMIN BENCHMARK STANDARD DYNAMICALLY DERIVED */}
       <div

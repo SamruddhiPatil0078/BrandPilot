@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
-const FALLBACK_MODEL = 'llama-3.1-8b-instant';
+const FALLBACK_MODEL = 'llama-3.3-70b-versatile';
 
 // Basic in-memory rate limiter: max 60 requests per windowMs per IP
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
